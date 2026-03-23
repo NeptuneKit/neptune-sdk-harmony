@@ -72,9 +72,16 @@ export class ExportServer {
   }
 
   registerSource(source: ExportSourceEntry): void {
-    const index = this.sources.findIndex((item) => item.deviceId === source.deviceId && item.appId === source.appId && item.sessionId === source.sessionId)
+    const sourceKey = this.makeSourceKey(source)
+    if (sourceKey === null) {
+      return
+    }
+    const index = this.sources.findIndex((item) => this.makeSourceKey(item) === sourceKey)
     if (index >= 0) {
-      this.sources[index] = source
+      this.sources[index] = {
+        ...this.sources[index],
+        ...source
+      }
       return
     }
     this.sources.push(source)
@@ -82,6 +89,9 @@ export class ExportServer {
 
   ingest(record: IngestLogRecord | IngestLogRecord[]): LogRecord[] {
     const records = Array.isArray(record) ? record : [record]
+    for (const item of records) {
+      this.registerSourceFromRecord(item)
+    }
     return this.queue.appendAll(records)
   }
 
@@ -107,7 +117,9 @@ export class ExportServer {
   }
 
   sourcesSnapshot(): ExportSourceEntry[] {
-    return this.sources.slice()
+    return this.sources.map((source) => ({
+      ...source
+    }))
   }
 
   queryLogs(query: LogQueryOptions = {}): ExportCursorPage<LogRecord> {
@@ -134,6 +146,10 @@ export class ExportServer {
       const query = this.parseQuery(req)
       res.status(200).json(this.queryLogs(query) as ESObject)
     })
+
+    server.get('/v2/export/sources', (_req: HttpRequest, res: HttpResponse) => {
+      res.status(200).json(this.sourcesSnapshot() as ESObject)
+    })
   }
 
   private parseQuery(req: HttpRequest): LogQueryOptions {
@@ -155,6 +171,74 @@ export class ExportServer {
       return 1
     }
     return Math.min(limit, LOG_QUEUE_CAPACITY)
+  }
+
+  private registerSourceFromRecord(record: IngestLogRecord): void {
+    if (record.source === undefined || record.source === null) {
+      return
+    }
+
+    const sdkName = record.source.sdkName
+    const sdkVersion = record.source.sdkVersion
+    if (!this.hasSourceIdentity(sdkName, sdkVersion, record.platform, record.appId, record.sessionId, record.deviceId)) {
+      return
+    }
+
+    this.registerSource({
+      deviceId: record.deviceId,
+      appId: record.appId,
+      platform: record.platform,
+      sessionId: record.sessionId,
+      sdkName: record.source.sdkName,
+      sdkVersion: record.source.sdkVersion,
+      lastSeenAt: record.timestamp
+    })
+  }
+
+  private hasSourceIdentity(
+    sdkName: string | undefined,
+    sdkVersion: string | undefined,
+    platform: string | undefined,
+    appId: string | undefined,
+    sessionId: string | undefined,
+    deviceId: string | undefined
+  ): boolean {
+    return this.normalizeSourceField(sdkName) !== null &&
+      this.normalizeSourceField(sdkVersion) !== null &&
+      this.normalizeSourceField(platform) !== null &&
+      this.normalizeSourceField(appId) !== null &&
+      this.normalizeSourceField(sessionId) !== null &&
+      this.normalizeSourceField(deviceId) !== null
+  }
+
+  private makeSourceKey(source: ExportSourceEntry): string | null {
+    const sdkName = this.normalizeSourceField(source.sdkName)
+    const sdkVersion = this.normalizeSourceField(source.sdkVersion)
+    const platform = this.normalizeSourceField(source.platform)
+    const appId = this.normalizeSourceField(source.appId)
+    const sessionId = this.normalizeSourceField(source.sessionId)
+    const deviceId = this.normalizeSourceField(source.deviceId)
+    if (
+      sdkName === null ||
+      sdkVersion === null ||
+      platform === null ||
+      appId === null ||
+      sessionId === null ||
+      deviceId === null
+    ) {
+      return null
+    }
+
+    return [sdkName, sdkVersion, platform, appId, sessionId, deviceId].join('::')
+  }
+
+  private normalizeSourceField(value: string | undefined | null): string | null {
+    if (value === undefined || value === null) {
+      return null
+    }
+
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
   }
 }
 

@@ -11,6 +11,7 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，可以直�
   - `GET /v2/export/health`
   - `GET /v2/export/metrics`
   - `GET /v2/export/logs?cursor&limit`
+  - `GET /v2/export/sources`
 
 ## 队列参数
 
@@ -40,7 +41,7 @@ const exportServer = await startExportServer(18765, queue, {
   version: '0.1.0'
 })
 
-queue.enqueue({
+exportServer.ingest({
   timestamp: new Date().toISOString(),
   level: 'info',
   message: 'Harmony export server started',
@@ -48,15 +49,75 @@ queue.enqueue({
   appId: 'demo.app',
   sessionId: 'session-1',
   deviceId: 'device-1',
-  category: 'lifecycle'
+  category: 'lifecycle',
+  source: {
+    sdkName: 'neptune-sdk-harmony',
+    sdkVersion: '0.1.0'
+  }
 })
 ```
+
+`ingest()` 会在入队时自动注册来源快照，来源维度由以下字段共同决定：
+
+- `sdkName`
+- `sdkVersion`
+- `platform`
+- `appId`
+- `sessionId`
+- `deviceId`
+
+同一维度重复上报时，只会更新对应来源的 `lastSeenAt`。
 
 启动后可访问：
 
 - `http://<device-ip>:18765/v2/export/health`
 - `http://<device-ip>:18765/v2/export/metrics`
 - `http://<device-ip>:18765/v2/export/logs`
+- `http://<device-ip>:18765/v2/export/sources`
+
+示例返回：
+
+```json
+[
+  {
+    "deviceId": "device-1",
+    "appId": "demo.app",
+    "platform": "harmony",
+    "sessionId": "session-1",
+    "sdkName": "neptune-sdk-harmony",
+    "sdkVersion": "0.1.0",
+    "lastSeenAt": "2026-03-23T12:34:56.000Z"
+  }
+]
+```
+
+来源去重维度：
+
+- `sdkName`
+- `sdkVersion`
+- `platform`
+- `appId`
+- `sessionId`
+- `deviceId`
+
+同一来源重复上报时，会更新已有快照的 `lastSeenAt`，不会重复追加。
+
+## 最小验证脚本
+
+仓库内提供：
+
+```bash
+./scripts/verify-sources-endpoint.sh http://127.0.0.1:18765 1
+node ./scripts/verify-source-dedup.mjs
+```
+
+脚本会检查：
+
+- `/v2/export/health` 可访问
+- `/v2/export/sources` 返回 JSON 数组
+- 可选校验来源数量是否符合预期
+- 来源快照字段完整且非空
+- 本地去重逻辑会合并同一来源维度的重复记录
 
 ## 开发依赖
 
@@ -68,7 +129,7 @@ queue.enqueue({
 
 - 当前存储仍是内存版，应用重启后日志不会保留。
 - 目前只实现 `cursor/limit` 增量导出，尚未加入 `platform/appId/sessionId` 过滤。
-- 本轮没有在真机或模拟器上跑 Harmony 构建，当前验证以静态自检为主。
+- 本轮没有在真机或模拟器上跑 Harmony 构建，当前验证以静态自检 + 运行期验证脚本为主。
 - `@cxy/webserver` 已接入，但后台常驻承载方式还没有绑定到具体 Ability 生命周期。
 
 ## 后续 TODO
