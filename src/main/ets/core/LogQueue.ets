@@ -54,42 +54,43 @@ export class LogQueue {
     return drained
   }
 
-  peekAfter(cursor?: string, limit: number = this.batchSize): LogRecord[] {
+  peekAfter(cursor?: string, limit: number = this.batchSize, predicate?: (record: LogRecord) => boolean): LogRecord[] {
     const normalizedLimit = Math.max(1, Math.min(limit, this.batchSize))
-    if (!cursor || cursor.trim().length === 0) {
-      return this.records.slice(0, normalizedLimit)
-    }
-
-    const cursorId = Number(cursor)
-    if (!Number.isFinite(cursorId)) {
-      return this.records.slice(0, normalizedLimit)
-    }
-
-    return this.records.filter((item) => item.id > cursorId).slice(0, normalizedLimit)
+    const records = this.recordsAfter(cursor)
+    return records.filter((item) => this.matchesPredicate(item, predicate)).slice(0, normalizedLimit)
   }
 
-  hasMoreAfter(cursor?: string, limit: number = this.batchSize): boolean {
+  hasMoreAfter(cursor?: string, limit: number = this.batchSize, predicate?: (record: LogRecord) => boolean): boolean {
     const normalizedLimit = Math.max(1, Math.min(limit, this.batchSize))
-    if (!cursor || cursor.trim().length === 0) {
-      return this.records.length > normalizedLimit
-    }
-
-    const cursorId = Number(cursor)
-    if (!Number.isFinite(cursorId)) {
-      return this.records.length > normalizedLimit
-    }
-
     let matched = 0
-    for (const item of this.records) {
-      if (item.id > cursorId) {
-        matched += 1
-        if (matched > normalizedLimit) {
-          return true
-        }
+    for (const item of this.recordsAfter(cursor)) {
+      if (!this.matchesPredicate(item, predicate)) {
+        continue
+      }
+      matched += 1
+      if (matched > normalizedLimit) {
+        return true
       }
     }
 
     return false
+  }
+
+  private recordsAfter(cursor?: string): LogRecord[] {
+    if (!cursor || cursor.trim().length === 0) {
+      return this.records
+    }
+
+    const cursorId = Number(cursor)
+    if (!Number.isFinite(cursorId)) {
+      return this.records
+    }
+
+    return this.records.filter((item) => item.id > cursorId)
+  }
+
+  private matchesPredicate(record: LogRecord, predicate?: (record: LogRecord) => boolean): boolean {
+    return predicate === undefined ? true : predicate(record)
   }
 
   shouldFlush(nowMs: number = Date.now()): boolean {

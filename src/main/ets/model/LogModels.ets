@@ -64,6 +64,9 @@ export interface ExportSourceEntry {
 export interface LogQueryOptions {
   cursor?: string
   limit?: number
+  platform?: string
+  appId?: string
+  sessionId?: string
 }
 
 export interface ExportServerRoute {

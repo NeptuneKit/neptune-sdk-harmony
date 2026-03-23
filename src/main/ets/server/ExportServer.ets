@@ -124,12 +124,13 @@ export class ExportServer {
 
   queryLogs(query: LogQueryOptions = {}): ExportCursorPage<LogRecord> {
     const limit = this.normalizeLimit(query.limit)
-    const records = this.queue.peekAfter(query.cursor, limit)
+    const predicate = this.makeLogFilter(query)
+    const records = this.queue.peekAfter(query.cursor, limit, predicate)
     const nextCursor = records.length > 0 ? String(records[records.length - 1].id) : (query.cursor ?? '')
     return {
       records,
       nextCursor,
-      hasMore: this.queue.hasMoreAfter(query.cursor, limit)
+      hasMore: this.queue.hasMoreAfter(query.cursor, limit, predicate)
     }
   }
 
@@ -159,7 +160,10 @@ export class ExportServer {
 
     return {
       cursor,
-      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
+      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      platform: this.normalizeQueryField(req.query.get('platform')),
+      appId: this.normalizeQueryField(req.query.get('appId')),
+      sessionId: this.normalizeQueryField(req.query.get('sessionId'))
     }
   }
 
@@ -171,6 +175,22 @@ export class ExportServer {
       return 1
     }
     return Math.min(limit, LOG_QUEUE_CAPACITY)
+  }
+
+  private makeLogFilter(query: LogQueryOptions): ((record: LogRecord) => boolean) | undefined {
+    const platform = this.normalizeQueryField(query.platform)
+    const appId = this.normalizeQueryField(query.appId)
+    const sessionId = this.normalizeQueryField(query.sessionId)
+
+    if (platform === undefined && appId === undefined && sessionId === undefined) {
+      return undefined
+    }
+
+    return (record: LogRecord): boolean => {
+      return this.matchesQueryField(record.platform, platform) &&
+        this.matchesQueryField(record.appId, appId) &&
+        this.matchesQueryField(record.sessionId, sessionId)
+    }
   }
 
   private registerSourceFromRecord(record: IngestLogRecord): void {
@@ -239,6 +259,19 @@ export class ExportServer {
 
     const trimmed = value.trim()
     return trimmed.length > 0 ? trimmed : null
+  }
+
+  private normalizeQueryField(value: string | undefined | null): string | undefined {
+    const normalized = this.normalizeSourceField(value)
+    return normalized === null ? undefined : normalized
+  }
+
+  private matchesQueryField(actual: string | undefined, expected: string | undefined): boolean {
+    if (expected === undefined) {
+      return true
+    }
+
+    return this.normalizeQueryField(actual) === expected
   }
 }
 
