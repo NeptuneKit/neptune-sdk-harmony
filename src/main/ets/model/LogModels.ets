@@ -1,9 +1,7 @@
 export type Platform = 'ios' | 'android' | 'harmony' | 'web'
 export type LogLevel = 'trace' | 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'critical'
 
-export interface StringMap {
-  [key: string]: string
-}
+export type StringMap = Record<string, string>
 
 export interface LogSourceInfo {
   sdkName: string

@@ -33,6 +33,12 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供�
 
 ## 安装依赖
 
+仓库根目录已提交项目级 `.ohpmrc`，会优先固定到 Harmony 官方源：
+
+- `https://ohpm.openharmony.cn/ohpm/`
+
+直接执行：
+
 ```bash
 ohpm install --all
 ```
@@ -50,15 +56,28 @@ ohpm install --all
 
 - `ohpm`
 - `hvigorw`
+- OpenHarmony SDK API 12（与 `library/oh-package.json5` 的 `compatibleSdkVersion: 12` 对齐）
+
+本仓库在以下工具版本上已验证：
+
+- `ohpm 6.0.1`
+- `hvigor 6.22.3`
 
 如果本机使用 DevEco Studio 默认安装路径，仓库内的 `./hvigorw` 会自动尝试设置：
 
 - `DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk`
 - `OHOS_BASE_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony`
 
+如果你的 Harmony SDK 不在默认目录，需要自行导出：
+
+- `DEVECO_SDK_HOME`
+- `OHOS_BASE_SDK_HOME`
+- 可选：`HVIGORW_BIN`
+
 ### 可执行命令
 
 ```bash
+ohpm install --all
 ./hvigorw --mode project tasks --no-daemon
 ./hvigorw --mode project clean --no-daemon
 ./hvigorw --mode module -p module=library assembleHar --no-daemon
@@ -74,22 +93,21 @@ ohpm install --all
 
 已验证通过：
 
+- `ohpm install --all`
 - `./hvigorw --mode project tasks --no-daemon`
 - `./hvigorw --mode project clean --no-daemon`
-
-已验证失败但拿到明确阻塞：
-
 - `./hvigorw --mode module -p module=library assembleHar --no-daemon`
 
-当前阻塞项：
+本次通过点：
 
-1. 现有 ArkTS 源码还未完全收敛到 Harmony ArkTS 严格子集，主要集中在：
-   - `src/main/ets/core/RdbLogStore.ets`
-   - `src/main/ets/core/LogStoreBase.ets`
-   - `src/main/ets/core/LogQueue.ets`
-   - `src/main/ets/server/ExportServer.ets`
-2. `@cxy/webserver` 依赖未能在本机通过 `ohpm install --all` 成功拉取；当前 registry 返回 TLS 连接重置。
-3. `RdbLogStore` 当前仍使用不符合 API 12 文档的 ArkData 导入/类型写法，后续需要进一步按 ArkTS 规则收敛。
+1. `ohpm` 源已切到官方 `ohpm.openharmony.cn`，`@cxy/webserver` 可正常解析与下载。
+2. `RdbLogStore` 已按 API 12 的 `@kit.ArkData` 命名导出改为 `relationalStore` 类型化调用。
+3. `LogModels`、`LogStoreBase`、`LogQueue`、`ExportServer`、`RdbLogStore` 已收敛掉阻塞构建的 ArkTS 严格语法问题。
+
+构建说明：
+
+- `assembleHar` 目前可成功产出 `HAR`。
+- 构建期间仍会有若干 “Function may throw exceptions” 的 ArkTS 警告，以及 HAR 签名配置缺省警告；它们不会阻塞本地 `HAR` 产物生成。
 
 ## 启动示例
 
@@ -219,12 +237,11 @@ node ./scripts/verify-log-persistence.mjs
 ## 已知限制
 
 - 默认仍是内存版，若调用方不注入持久化队列，应用重启后日志不会保留。
-- 当前仓库已具备可审查的 Harmony 工程壳，但 `assembleHar` 仍受 ArkTS 语法兼容性和私有依赖拉取阻塞。
 - `@cxy/webserver` 已接入，但后台常驻承载方式还没有绑定到具体 Ability 生命周期。
+- `RdbLogStore` 当前已经能通过 API 12 编译，但仍保留少量 ArkTS “可能抛异常” 警告，后续可以按显式错误处理继续收敛。
 
 ## 后续 TODO
 
-- 将 `RdbLogStore` 和 `ExportServer` 收敛到 Harmony ArkTS 严格语法子集
-- 恢复 `@cxy/webserver` 在当前机器上的可安装性，或补官方可审查的离线依赖方案
 - 将持久化队列接入具体 `Ability` 初始化流程
 - 绑定 `AppServiceExtensionAbility` 或等效承载层
+- 视需要继续清理 `RdbLogStore` 的 ArkTS 警告级异常处理提示

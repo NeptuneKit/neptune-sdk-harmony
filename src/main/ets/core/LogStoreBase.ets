@@ -42,10 +42,7 @@ export abstract class LogStoreBase {
   readonly retryDelaysMs: number[] = LOG_QUEUE_RETRY_DELAYS_MS
 
   enqueue(record: IngestLogRecord): LogRecord {
-    const stored: LogRecord = {
-      id: this.nextId,
-      ...record
-    }
+    const stored: LogRecord = this.makeStoredRecord(record)
     this.nextId += 1
     this.totalIngested += 1
 
@@ -174,5 +171,21 @@ export abstract class LogStoreBase {
 
   private matchesPredicate(record: LogRecord, predicate?: (record: LogRecord) => boolean): boolean {
     return predicate === undefined ? true : predicate(record)
+  }
+
+  private makeStoredRecord(record: IngestLogRecord): LogRecord {
+    return {
+      id: this.nextId,
+      timestamp: record.timestamp,
+      level: record.level,
+      message: record.message,
+      platform: record.platform,
+      appId: record.appId,
+      sessionId: record.sessionId,
+      deviceId: record.deviceId,
+      category: record.category,
+      attributes: record.attributes,
+      source: record.source
+    }
   }
 }

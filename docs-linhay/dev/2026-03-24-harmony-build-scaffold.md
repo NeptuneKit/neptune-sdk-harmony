@@ -40,21 +40,19 @@
 
 已通过：
 
+- `ohpm install --all`
 - `project tasks`
 - `project clean`
-
-已失败但配置链路完整：
-
 - `module assembleHar`
 
-当前真实阻塞：
+本轮补充设计结论：
 
-1. ArkTS 编译器对现有 SDK 源码执行严格检查时，`RdbLogStore`、`LogStoreBase`、`LogQueue`、`ExportServer` 仍存在不兼容语法。
-2. `@cxy/webserver` 依赖未能从当前私有 registry 拉取。
-3. `RdbLogStore` 仍需按 API 12 的 `@kit.ArkData` 导入与类型规则继续收敛。
+1. 仓库内增加项目级 `.ohpmrc`，把 `registry` 固定到 `https://ohpm.openharmony.cn/ohpm/`，避免被用户态私有源覆盖。
+2. `RdbLogStore` 不再走 `@kit.ArkData` 默认导入或动态反射调用，改为 API 12 可识别的 `relationalStore.getRdbStore()`、`RdbStore.executeSql()`、`RdbStore.querySql()`。
+3. 为适配 ArkTS 严格子集，源码层移除了 index signature、对象 spread、`any`/索引访问类型、内联对象类型声明。
 
 ## 风险
 
 - 若开发机未安装 Harmony Command Line Tools，`./hvigorw` 只能给出明确缺失提示，无法真实编译。
-- 当前模块已经脱离“缺工程配置”状态，但尚未脱离“源码不符合 ArkTS 严格子集”的状态。
 - 若后续直接复制源码而不是继续走同步脚本，容易出现顶层源码与模块内副本漂移。
+- 当前 `assembleHar` 已通过，但 `RdbLogStore` 还保留若干 ArkTS “Function may throw exceptions” 警告，后续可继续补显式异常处理。

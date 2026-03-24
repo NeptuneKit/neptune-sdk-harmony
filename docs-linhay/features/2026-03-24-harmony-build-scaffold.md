@@ -11,7 +11,7 @@
 - 保留现有 `src/main/ets` SDK 源码结构，不做回滚。
 - 补齐项目级 `build-profile.json5`、`hvigorfile.ts`、`hvigor/hvigor-config.json5`、`AppScope/app.json5`。
 - 补齐 `library/` 下的 HAR 模块配置与包导出入口。
-- 提供仓库内可直接执行的构建命令，优先支持 `./hvigorw --mode module -p module=library assembleHar --no-daemon`。
+- 提供仓库内可直接执行的构建命令，并确保 `./hvigorw --mode module -p module=library assembleHar --no-daemon` 可通过。
 - README 补充安装和构建步骤，并记录本机验证结果。
 
 ## 非目标
@@ -38,10 +38,16 @@
 
 - 假如仓库根目录存在项目壳与 `library` 模块
 - 当我执行 `./hvigorw --mode module -p module=library assembleHar --no-daemon`
-- 那么要么完成 HAR 构建，要么输出明确的源码/依赖阻塞，而不是缺少工程配置
+- 那么应完成 `HAR` 构建，而不是继续被工程配置、依赖源或 ArkTS 严格语法阻塞
 
 ### 场景 4：环境缺失时可审查
 
 - 假如本机未安装 Harmony 构建工具链
 - 当我查看仓库内容
 - 那么仍应能看到完整的 Harmony 工程配置、模块配置、同步脚本和 README 步骤，而不是只有源码目录
+
+## 2026-03-24 完成情况
+
+- 已提交项目级 `.ohpmrc`，仓库内默认走 `https://ohpm.openharmony.cn/ohpm/`。
+- `ohpm install --all` 已在本机通过，`@cxy/webserver` 可正常拉取。
+- `./hvigorw --mode module -p module=library assembleHar --no-daemon` 已在本机通过。

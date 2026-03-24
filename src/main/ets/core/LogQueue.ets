@@ -1,5 +1,5 @@
 import { IngestLogRecord, LogRecord, LOG_QUEUE_BATCH_SIZE, LOG_QUEUE_CAPACITY, LOG_QUEUE_FLUSH_INTERVAL_MS, LOG_QUEUE_RETRY_DELAYS_MS } from '../model/LogModels'
-import { LogStoreBase, QueueSnapshot } from './LogStoreBase'
+import { LogStoreBase, LogStoreMetrics, LogStoreTotals, QueueSnapshot } from './LogStoreBase'
 import { MemoryLogStore } from './MemoryLogStore'
 
 export { QueueSnapshot }
@@ -48,11 +48,11 @@ export class LogQueue {
     return this.store.snapshot()
   }
 
-  metrics(): { queueSize: number; queueCapacity: number; droppedOverflow: number; totalExported: number } {
+  metrics(): LogStoreMetrics {
     return this.store.metrics()
   }
 
-  totals(): { totalIngested: number; totalExported: number } {
+  totals(): LogStoreTotals {
     return this.store.totals()
   }
 

@@ -1,5 +1,6 @@
-import relationalStore from '@kit.ArkData'
-import { IngestLogRecord, LogRecord } from '../model/LogModels'
+import { common } from '@kit.AbilityKit'
+import { relationalStore } from '@kit.ArkData'
+import { IngestLogRecord, LogLevel, LogRecord, LogSourceInfo, Platform, StringMap } from '../model/LogModels'
 import { LogStoreBase } from './LogStoreBase'
 
 export interface RdbLogStoreOptions {
@@ -16,17 +17,24 @@ interface MetaSnapshot {
   totalIngested: number
 }
 
+interface MetaRow {
+  key: string
+  value: string
+}
+
+type RdbBindArgs = Array<relationalStore.ValueType>
+
 export class RdbLogStore extends LogStoreBase {
-  private readonly context: ESObject
+  private readonly context: common.Context
   private readonly databaseName: string
   private readonly tableName: string
   private readonly metaTableName: string
-  private store: ESObject | null = null
+  private store: relationalStore.RdbStore | null = null
   private pendingPersist: Promise<void> = Promise.resolve()
 
   constructor(context: ESObject, options: RdbLogStoreOptions = {}) {
     super()
-    this.context = context
+    this.context = context as common.Context
     this.databaseName = options.databaseName ?? 'neptune_sdk_harmony_logs.db'
     this.tableName = options.tableName ?? 'logs'
     this.metaTableName = options.metaTableName ?? 'queue_meta'
@@ -86,22 +94,18 @@ export class RdbLogStore extends LogStoreBase {
     })
   }
 
-  private async openStore(): Promise<ESObject> {
+  private async openStore(): Promise<relationalStore.RdbStore> {
     if (this.store !== null) {
       return this.store
     }
 
-    const storeConfig = {
+    const storeConfig: relationalStore.StoreConfig = {
       name: this.databaseName,
       securityLevel: relationalStore.SecurityLevel.S1
     }
 
-    const store = await this.invokeMaybeAsync((relationalStore as ESObject).getRdbStore, [
-      this.context,
-      storeConfig,
-      1
-    ])
-    this.store = store as ESObject
+    const store = await relationalStore.getRdbStore(this.context, storeConfig)
+    this.store = store
     return this.store
   }
 
@@ -154,7 +158,7 @@ export class RdbLogStore extends LogStoreBase {
     return records
   }
 
-  private readRecord(resultSet: ESObject): LogRecord {
+  private readRecord(resultSet: relationalStore.ResultSet): LogRecord {
     const attributesJson = this.readString(resultSet, 'attributes')
     const sourceSdkName = this.readNullableString(resultSet, 'sourceSdkName')
     const sourceSdkVersion = this.readNullableString(resultSet, 'sourceSdkVersion')
@@ -165,9 +169,9 @@ export class RdbLogStore extends LogStoreBase {
     return {
       id: this.readNumber(resultSet, 'id'),
       timestamp: this.readString(resultSet, 'timestamp'),
-      level: this.readString(resultSet, 'level') as LogRecord['level'],
+      level: this.readString(resultSet, 'level') as LogLevel,
       message: this.readString(resultSet, 'message'),
-      platform: this.readString(resultSet, 'platform') as LogRecord['platform'],
+      platform: this.readString(resultSet, 'platform') as Platform,
       appId: this.readString(resultSet, 'appId'),
       sessionId: this.readString(resultSet, 'sessionId'),
       deviceId: this.readString(resultSet, 'deviceId'),
@@ -183,12 +187,12 @@ export class RdbLogStore extends LogStoreBase {
     file: string | null,
     functionName: string | null,
     line: number | null
-  ): IngestLogRecord['source'] {
+  ): LogSourceInfo | undefined {
     if (sdkName === null || sdkVersion === null) {
       return undefined
     }
 
-    const source: NonNullable<IngestLogRecord['source']> = {
+    const source: LogSourceInfo = {
       sdkName: sdkName,
       sdkVersion: sdkVersion
     }
@@ -206,13 +210,13 @@ export class RdbLogStore extends LogStoreBase {
     return source
   }
 
-  private parseAttributes(value: string | null): { [key: string]: string } | undefined {
+  private parseAttributes(value: string | null): StringMap | undefined {
     if (value === null || value.length === 0) {
       return undefined
     }
 
     try {
-      return JSON.parse(value) as { [key: string]: string }
+      return JSON.parse(value) as StringMap
     } catch (_error) {
       return undefined
     }
@@ -253,9 +257,9 @@ export class RdbLogStore extends LogStoreBase {
     return meta
   }
 
-  private async queryMetaRows(): Promise<Array<{ key: string; value: string }>> {
+  private async queryMetaRows(): Promise<MetaRow[]> {
     const resultSet = await this.querySql(`SELECT key, value FROM ${this.metaTableName}`)
-    const rows: Array<{ key: string; value: string }> = []
+    const rows: MetaRow[] = []
     if (resultSet === null || resultSet === undefined) {
       return rows
     }
@@ -267,15 +271,14 @@ export class RdbLogStore extends LogStoreBase {
       }
 
       do {
-        rows.push({
+        const row: MetaRow = {
           key: this.readString(resultSet, 'key'),
           value: this.readString(resultSet, 'value')
-        })
-      } while (typeof resultSet.goToNextRow === 'function' ? resultSet.goToNextRow() : false)
+        }
+        rows.push(row)
+      } while (resultSet.goToNextRow())
     } finally {
-      if (typeof resultSet.close === 'function') {
-        resultSet.close()
-      }
+      resultSet.close()
     }
 
     return rows
@@ -324,46 +327,38 @@ export class RdbLogStore extends LogStoreBase {
     await this.runSql(`INSERT OR REPLACE INTO ${this.metaTableName} (key, value) VALUES (?, ?)`, [key, value])
   }
 
-  private async runSql(sql: string, args?: Array<string | number | null>): Promise<void> {
+  private async runSql(sql: string, args?: RdbBindArgs): Promise<void> {
     const store = await this.openStore()
-    await this.invokeMaybeAsync((store as ESObject).executeSql, [sql, args ?? []], store)
+    await store.executeSql(sql, args ?? [])
   }
 
-  private async querySql(sql: string, args?: Array<string | number | null>): Promise<ESObject | null> {
+  private async querySql(sql: string, args?: RdbBindArgs): Promise<relationalStore.ResultSet | null> {
     const store = await this.openStore()
-    return await this.invokeMaybeAsync((store as ESObject).querySql, [sql, args ?? []], store) as ESObject | null
+    return await store.querySql(sql, args ?? [])
   }
 
-  private readString(resultSet: ESObject, columnName: string): string {
+  private readString(resultSet: relationalStore.ResultSet, columnName: string): string {
     const value = this.readNullableString(resultSet, columnName)
     return value === null ? '' : value
   }
 
-  private readNullableString(resultSet: ESObject, columnName: string): string | null {
-    if (typeof resultSet.getString === 'function') {
-      const value = resultSet.getString(columnName)
-      return value === null || value === undefined ? null : String(value)
-    }
-
-    const value = resultSet[columnName]
-    return value === null || value === undefined ? null : String(value)
-  }
-
-  private readNullableNumber(resultSet: ESObject, columnName: string): number | null {
-    if (typeof resultSet.getLong === 'function') {
-      const value = resultSet.getLong(columnName)
-      return value === null || value === undefined ? null : Number(value)
-    }
-
-    const value = resultSet[columnName]
-    if (value === null || value === undefined) {
+  private readNullableString(resultSet: relationalStore.ResultSet, columnName: string): string | null {
+    const columnIndex = resultSet.getColumnIndex(columnName)
+    if (resultSet.isColumnNull(columnIndex)) {
       return null
     }
-
-    return Number(value)
+    return resultSet.getString(columnIndex)
   }
 
-  private readNumber(resultSet: ESObject, columnName: string): number {
+  private readNullableNumber(resultSet: relationalStore.ResultSet, columnName: string): number | null {
+    const columnIndex = resultSet.getColumnIndex(columnName)
+    if (resultSet.isColumnNull(columnIndex)) {
+      return null
+    }
+    return Number(resultSet.getLong(columnIndex))
+  }
+
+  private readNumber(resultSet: relationalStore.ResultSet, columnName: string): number {
     const value = this.readNullableNumber(resultSet, columnName)
     return value === null ? 0 : value
   }
@@ -376,39 +371,5 @@ export class RdbLogStore extends LogStoreBase {
       .catch(() => undefined)
 
     return this.pendingPersist
-  }
-
-  private async invokeMaybeAsync(callable: any, args: any[], receiver?: any): Promise<any> {
-    return await new Promise((resolve, reject) => {
-      const callback = (error: any, value?: any): void => {
-        if (error !== undefined && error !== null) {
-          reject(error)
-          return
-        }
-
-        resolve(value ?? undefined)
-      }
-
-      try {
-        const callArgs = args.slice()
-        callArgs.push(callback)
-        const result = receiver === undefined ? callable(...callArgs) : callable.call(receiver, ...callArgs)
-
-        if (result !== undefined && result !== null && typeof result.then === 'function') {
-          result.then((value: any) => {
-            resolve(value)
-          }).catch((error: any) => {
-            reject(error)
-          })
-          return
-        }
-
-        if (result !== undefined && result !== null) {
-          resolve(result)
-        }
-      } catch (error) {
-        reject(error)
-      }
-    })
   }
 }

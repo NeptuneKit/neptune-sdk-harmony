@@ -79,13 +79,10 @@ export class ExportServer {
     }
     const index = this.sources.findIndex((item) => this.makeSourceKey(item) === sourceKey)
     if (index >= 0) {
-      this.sources[index] = {
-        ...this.sources[index],
-        ...source
-      }
+      this.sources[index] = this.copySourceEntry(source)
       return
     }
-    this.sources.push(source)
+    this.sources.push(this.copySourceEntry(source))
   }
 
   ingest(record: IngestLogRecord | IngestLogRecord[]): LogRecord[] {
@@ -119,9 +116,11 @@ export class ExportServer {
 
   sourcesSnapshot(): ExportSourceEntry[] {
     this.ensureSourcesLoaded()
-    return this.sources.map((source) => ({
-      ...source
-    }))
+    const snapshot: ExportSourceEntry[] = []
+    for (const source of this.sources) {
+      snapshot.push(this.copySourceEntry(source))
+    }
+    return snapshot
   }
 
   queryLogs(query: LogQueryOptions = {}): ExportCursorPage<LogRecord> {
@@ -206,7 +205,7 @@ export class ExportServer {
       return
     }
 
-    this.registerSource({
+    const sourceEntry: ExportSourceEntry = {
       deviceId: record.deviceId,
       appId: record.appId,
       platform: record.platform,
@@ -214,7 +213,8 @@ export class ExportServer {
       sdkName: record.source.sdkName,
       sdkVersion: record.source.sdkVersion,
       lastSeenAt: record.timestamp
-    })
+    }
+    this.registerSource(sourceEntry)
   }
 
   private ensureSourcesLoaded(): void {
@@ -285,6 +285,18 @@ export class ExportServer {
     }
 
     return this.normalizeQueryField(actual) === expected
+  }
+
+  private copySourceEntry(source: ExportSourceEntry): ExportSourceEntry {
+    return {
+      deviceId: source.deviceId,
+      appId: source.appId,
+      platform: source.platform,
+      sessionId: source.sessionId,
+      sdkName: source.sdkName,
+      sdkVersion: source.sdkVersion,
+      lastSeenAt: source.lastSeenAt
+    }
   }
 }
 
