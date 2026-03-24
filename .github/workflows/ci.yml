@@ -43,6 +43,7 @@ jobs:
           node ./scripts/verify-log-query-filtering.mjs
           node ./scripts/verify-log-persistence.mjs
           node ./scripts/demo-smoke.mjs
+          node ./scripts/verify-demo-entry.mjs
 
   harmony-build:
     name: Harmony build
@@ -88,3 +89,8 @@ jobs:
         if: ${{ steps.toolchain.outputs.can_run == 'true' }}
         shell: bash
         run: ./hvigorw --mode module -p module=library assembleHar --no-daemon
+
+      - name: Assemble HAP
+        if: ${{ steps.toolchain.outputs.can_run == 'true' }}
+        shell: bash
+        run: ./hvigorw --mode module -p module=entry assembleHap --no-daemon

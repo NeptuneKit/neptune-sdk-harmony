@@ -1,0 +1,11 @@
+{
+  "name": "neptune-sdk-harmony-demo",
+  "version": "0.1.0",
+  "description": "Harmony demo app for the Neptune SDK HAR module",
+  "compatibleSdkVersion": 12,
+  "dependencies": {
+    "neptune-sdk-harmony": "file:../library"
+  },
+  "devDependencies": {},
+  "dynamicDependencies": {}
+}

@@ -6,6 +6,11 @@
         "name": "default",
         "signingConfig": "default",
         "compatibleSdkVersion": "5.0.0(12)",
+        "buildOption": {
+          "strictMode": {
+            "useNormalizedOHMUrl": true
+          }
+        },
         "runtimeOS": "HarmonyOS",
         "targetSdkVersion": "5.0.0(12)"
       }
@@ -20,6 +25,10 @@
     ]
   },
   "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry"
+    },
     {
       "name": "library",
       "srcPath": "./library"

@@ -1,0 +1,232 @@
+import { DemoLogCard, DemoSnapshot, DemoSourceCard, demoRuntime } from '../runtime/DemoRuntime'
+
+@Entry
+@Component
+struct Index {
+  @State snapshot: DemoSnapshot = demoRuntime.snapshot()
+
+  private runDemoBatch(): void {
+    this.snapshot = demoRuntime.seedBatch()
+    console.info(
+      `Demo batch ${this.snapshot.batchIndex} written, queueSize=${this.snapshot.metrics.queueSize}, sources=${this.snapshot.sources.length}`
+    )
+  }
+
+  build() {
+    Scroll() {
+      Column({ space: 16 }) {
+        Column({ space: 10 }) {
+          Text('Neptune SDK Harmony Demo')
+            .fontSize(30)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#F2F7FF')
+
+          Text('点击下方按钮，把日志写入 HAR Runtime，并在页面内同步观察 metrics 与 sources 摘要。')
+            .fontSize(14)
+            .fontColor('#9FB2C7')
+            .lineHeight(20)
+
+          Row({ space: 10 }) {
+            Text(this.snapshot.banner)
+              .fontSize(13)
+              .fontColor('#9FD6FF')
+              .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+              .backgroundColor('rgba(36, 74, 106, 0.75)')
+              .borderRadius(999)
+
+            Text(`batch #${this.snapshot.batchIndex}`)
+              .fontSize(13)
+              .fontColor('#C7D4E6')
+              .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+              .backgroundColor('rgba(255, 255, 255, 0.08)')
+              .borderRadius(999)
+          }
+          .alignItems(VerticalAlign.Center)
+        }
+        .padding(20)
+        .borderRadius(24)
+        .backgroundColor('rgba(9, 18, 31, 0.92)')
+        .border({
+          width: 1,
+          color: 'rgba(104, 143, 176, 0.25)'
+        })
+
+        Button('写入 Demo 日志批次')
+          .type(ButtonType.Capsule)
+          .width('100%')
+          .height(54)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor('#24C6DC')
+          .fontColor('#04121C')
+          .onClick(() => {
+            this.runDemoBatch()
+          })
+
+        Column({ space: 12 }) {
+          Text('Metrics')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#F2F7FF')
+
+          Row({ space: 12 }) {
+            Column({ space: 6 }) {
+              Text(String(this.snapshot.metrics.queueSize))
+                .fontSize(28)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#F2F7FF')
+              Text('queueSize')
+                .fontSize(12)
+                .fontColor('#9FB2C7')
+            }
+            .layoutWeight(1)
+            .padding(16)
+            .borderRadius(18)
+            .backgroundColor('rgba(15, 27, 42, 0.96)')
+
+            Column({ space: 6 }) {
+              Text(String(this.snapshot.metrics.totalIngested))
+                .fontSize(28)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#F2F7FF')
+              Text('totalIngested')
+                .fontSize(12)
+                .fontColor('#9FB2C7')
+            }
+            .layoutWeight(1)
+            .padding(16)
+            .borderRadius(18)
+            .backgroundColor('rgba(15, 27, 42, 0.96)')
+          }
+
+          Row({ space: 12 }) {
+            Column({ space: 6 }) {
+              Text(String(this.snapshot.metrics.droppedOverflow))
+                .fontSize(24)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#F2F7FF')
+              Text('droppedOverflow')
+                .fontSize(12)
+                .fontColor('#9FB2C7')
+            }
+            .layoutWeight(1)
+            .padding(16)
+            .borderRadius(18)
+            .backgroundColor('rgba(15, 27, 42, 0.96)')
+
+            Column({ space: 6 }) {
+              Text(String(this.snapshot.metrics.totalExported))
+                .fontSize(24)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#F2F7FF')
+              Text('totalExported')
+                .fontSize(12)
+                .fontColor('#9FB2C7')
+            }
+            .layoutWeight(1)
+            .padding(16)
+            .borderRadius(18)
+            .backgroundColor('rgba(15, 27, 42, 0.96)')
+          }
+        }
+        .padding(20)
+        .borderRadius(24)
+        .backgroundColor('rgba(9, 18, 31, 0.92)')
+        .border({
+          width: 1,
+          color: 'rgba(104, 143, 176, 0.25)'
+        })
+
+        Column({ space: 12 }) {
+          Text(`Sources · ${this.snapshot.sources.length}`)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#F2F7FF')
+
+          if (this.snapshot.sources.length === 0) {
+            Text('还没有来源快照，点击上方按钮后会显示 Harmony 模拟器来源。')
+              .fontSize(13)
+              .fontColor('#9FB2C7')
+              .lineHeight(20)
+          } else {
+            Column({ space: 10 }) {
+              ForEach(this.snapshot.sources, (source: DemoSourceCard) => {
+                Column({ space: 6 }) {
+                  Text(source.title)
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor('#F2F7FF')
+                  Text(source.detail)
+                    .fontSize(12)
+                    .fontColor('#A8BFD8')
+                    .lineHeight(18)
+                  Text(source.timestamp)
+                    .fontSize(12)
+                    .fontColor('#74D3F7')
+                }
+                .padding(14)
+                .borderRadius(16)
+                .backgroundColor('rgba(15, 27, 42, 0.96)')
+              }, (source: DemoSourceCard) => source.id)
+            }
+          }
+        }
+        .padding(20)
+        .borderRadius(24)
+        .backgroundColor('rgba(9, 18, 31, 0.92)')
+        .border({
+          width: 1,
+          color: 'rgba(104, 143, 176, 0.25)'
+        })
+
+        Column({ space: 12 }) {
+          Text('Recent logs')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#F2F7FF')
+
+          if (this.snapshot.recentLogs.length === 0) {
+            Text('当前队列为空。点击按钮后，这里会显示最近写入的日志。')
+              .fontSize(13)
+              .fontColor('#9FB2C7')
+              .lineHeight(20)
+          } else {
+            Column({ space: 10 }) {
+              ForEach(this.snapshot.recentLogs, (log: DemoLogCard) => {
+                Column({ space: 4 }) {
+                  Text(log.title)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor('#F2F7FF')
+                  Text(log.detail)
+                    .fontSize(12)
+                    .fontColor('#A8BFD8')
+                    .lineHeight(18)
+                  Text(log.timestamp)
+                    .fontSize(12)
+                    .fontColor('#F6C06B')
+                }
+                .padding(14)
+                .borderRadius(16)
+                .backgroundColor('rgba(15, 27, 42, 0.96)')
+              }, (log: DemoLogCard) => log.id)
+            }
+          }
+        }
+        .padding(20)
+        .borderRadius(24)
+        .backgroundColor('rgba(9, 18, 31, 0.92)')
+        .border({
+          width: 1,
+          color: 'rgba(104, 143, 176, 0.25)'
+        })
+      }
+      .padding({ left: 20, right: 20, top: 24, bottom: 28 })
+      .width('100%')
+    }
+    .scrollBar(BarState.Auto)
+    .backgroundColor('#06101A')
+    .width('100%')
+    .height('100%')
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_description",
+      "value": "Neptune SDK Harmony demo app"
+    },
+    {
+      "name": "ability_description",
+      "value": "Launches the Neptune SDK demo dashboard"
+    },
+    {
+      "name": "ability_label",
+      "value": "Neptune Demo"
+    }
+  ]
+}

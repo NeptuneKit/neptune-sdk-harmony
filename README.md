@@ -1,6 +1,6 @@
 # neptune-sdk-harmony
 
-NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供可切换的本地存储抽象。
+NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供可切换的本地存储抽象；同时新增了一个可以直接在 Harmony 模拟器运行的 `entry` Demo App。
 
 ## 当前能力
 
@@ -13,6 +13,7 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供�
   - `GET /v2/export/metrics`
   - `GET /v2/export/logs?cursor&limit&platform&appId&sessionId`
   - `GET /v2/export/sources`
+- `entry/` Stage HAP Demo App，按钮触发 Neptune SDK 写入日志并展示 metrics / sources 摘要
 
 ## 队列参数
 
@@ -23,9 +24,10 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供�
 
 ## 工程结构
 
-当前仓库已经补齐为 Harmony 工程壳 + `HAR` library 模块：
+当前仓库已经补齐为 Harmony 工程壳 + `HAR` library 模块 + `entry` Demo App：
 
 - 项目根目录：`build-profile.json5`、`hvigorfile.ts`、`hvigor/hvigor-config.json5`、`AppScope/app.json5`
+- `entry/`：可运行的 Stage HAP Demo App，通过模块依赖引用 `library/`
 - `library/`：最小可构建 `HAR` 模块配置
 - `src/main/ets/`：SDK 源码主目录，仍然是唯一源码来源
 - `scripts/sync-harmony-module.sh`：构建前把顶层源码同步到 `library/src/main/ets`
@@ -81,13 +83,17 @@ ohpm install --all
 ./hvigorw --mode project tasks --no-daemon
 ./hvigorw --mode project clean --no-daemon
 ./hvigorw --mode module -p module=library assembleHar --no-daemon
+./hvigorw --mode module -p module=entry assembleHap --no-daemon
+./scripts/build-demo-entry.sh
 ```
 
 说明：
 
-- `tasks`：验证项目壳和 `library` 模块已被 `hvigor` 正确识别。
+- `tasks`：验证项目壳和 `library` / `entry` 模块已被 `hvigor` 正确识别。
 - `clean`：验证项目级清理任务可执行。
 - `assembleHar`：尝试编译 `HAR` 模块，是当前最接近真实 SDK 产物的构建命令。
+- `assembleHap`：尝试编译 `entry` Demo App 的 HAP 产物。
+- `scripts/build-demo-entry.sh`：`assembleHap` 的便捷包装脚本。
 
 ### 2026-03-24 本机验证结果
 
@@ -97,24 +103,32 @@ ohpm install --all
 - `./hvigorw --mode project tasks --no-daemon`
 - `./hvigorw --mode project clean --no-daemon`
 - `./hvigorw --mode module -p module=library assembleHar --no-daemon`
+- `node ./scripts/verify-demo-entry.mjs`
+- `./hvigorw --mode module -p module=entry assembleHap --no-daemon`
+- `./scripts/build-demo-entry.sh`
 
 本次通过点：
 
 1. `ohpm` 源已切到官方 `ohpm.openharmony.cn`，`@cxy/webserver` 可正常解析与下载。
 2. `RdbLogStore` 已按 API 12 的 `@kit.ArkData` 命名导出改为 `relationalStore` 类型化调用。
 3. `LogModels`、`LogStoreBase`、`LogQueue`、`ExportServer`、`RdbLogStore` 已收敛掉阻塞构建的 ArkTS 严格语法问题。
+4. `entry` Demo App 通过本地 `library` HAR 引用 Neptune SDK，不复制核心实现。
+5. `AppScope/app.json5` 已补齐 `icon` / `label`，`entry/src/main/module.json5` 已补齐 `startWindowIcon` / `startWindowBackground`。
+6. `build-profile.json5` 已开启 `buildOption.strictMode.useNormalizedOHMUrl`，满足 `@cxy/webserver` 的 bytecode HAR 约束。
 
 构建说明：
 
 - `assembleHar` 目前可成功产出 `HAR`。
+- `assembleHap` 目前可成功产出 `HAP`，并作为 Demo App 的独立构建命令。
 - 构建期间仍会有若干 “Function may throw exceptions” 的 ArkTS 警告，以及 HAR 签名配置缺省警告；它们不会阻塞本地 `HAR` 产物生成。
+- `entry` 构建还会提示 local module info 缺省和 SemVer 警告；当前不阻塞本地模拟器构建。
 
 ## CI
 
 仓库已配置 `.github/workflows/ci.yml`，分成两条路径：
 
 - `push(main)` / `pull_request`：只跑标准 runner 可执行的校验，不依赖 DevEco 环境
-- `workflow_dispatch`：将 `run_harmony_build` 显式设为 `true` 时，才会额外尝试执行 `ohpm install --all` 和 `./hvigorw --mode module -p module=library assembleHar --no-daemon`
+- `workflow_dispatch`：将 `run_harmony_build` 显式设为 `true` 时，才会额外尝试执行 `ohpm install --all`、`./hvigorw --mode module -p module=library assembleHar --no-daemon` 和 `./hvigorw --mode module -p module=entry assembleHap --no-daemon`
 
 说明：
 
@@ -130,6 +144,7 @@ node ./scripts/verify-source-dedup.mjs
 node ./scripts/verify-log-query-filtering.mjs
 node ./scripts/verify-log-persistence.mjs
 node ./scripts/demo-smoke.mjs
+node ./scripts/verify-demo-entry.mjs
 ```
 
 ## Demo 冒烟
@@ -148,6 +163,57 @@ node ./scripts/demo-smoke.mjs
 - 输出一个简短摘要，便于快速确认接入链路是否正常
 
 当前脚本是 CLI 可执行的参考 smoke，不依赖 Harmony 运行时，方便在没有真机/模拟器环境时先确认 SDK 导出契约；后续接入实际 Harmony 应用后，可以把同样的导出路径替换成真实服务端点继续复用。
+
+## Demo App
+
+`entry/` 是一个可以直接跑到 Harmony 模拟器上的 Stage HAP，它通过本地 `library` HAR 引用 Neptune SDK，然后在页面上做三件事：
+
+- 点击按钮向 SDK 写入一批示例日志
+- 刷新 `metrics` 概览
+- 刷新 `sources` 和最近日志摘要
+
+### Demo 构建
+
+```bash
+./hvigorw --mode module -p module=entry assembleHap --no-daemon
+```
+
+或者使用包装脚本：
+
+```bash
+./scripts/build-demo-entry.sh
+```
+
+### DevEco Studio 跑法
+
+1. 打开 `neptune-sdk-harmony` 工程。
+2. 等待 `ohpm install --all` 和项目同步结束。
+3. 选择 `entry` 模块和一个 Harmony 模拟器。
+4. 点击 Run。
+5. 打开页面后点击“写入 Demo 日志批次”按钮。
+
+### hdc 跑法
+
+1. 先在 DevEco Studio 启动一个 Harmony 模拟器。
+2. 用下面的命令安装 HAP：
+
+```bash
+hdc install <entry-hap-path>
+```
+
+3. 查看安装结果：
+
+```bash
+hdc shell bm dump -a
+```
+
+4. 拉起 Demo Ability：
+
+```bash
+hdc shell aa start -b io.github.neptune.sdk.harmony -a EntryAbility
+```
+
+5. 回到模拟器，点击页面按钮即可看到 metrics / sources 摘要刷新。
 
 ## 启动示例
 
@@ -220,33 +286,6 @@ const exportServer = await startExportServer(18765, queue, {
 - 多个过滤条件同时传入时，按 AND 关系匹配
 - `cursor/limit` 仍然可用，语义为“在 `id > cursor` 的记录中按过滤条件取最多 `limit` 条”
 
-示例返回：
-
-```json
-[
-  {
-    "deviceId": "device-1",
-    "appId": "demo.app",
-    "platform": "harmony",
-    "sessionId": "session-1",
-    "sdkName": "neptune-sdk-harmony",
-    "sdkVersion": "0.1.0",
-    "lastSeenAt": "2026-03-23T12:34:56.000Z"
-  }
-]
-```
-
-来源去重维度：
-
-- `sdkName`
-- `sdkVersion`
-- `platform`
-- `appId`
-- `sessionId`
-- `deviceId`
-
-同一来源重复上报时，会更新已有快照的 `lastSeenAt`，不会重复追加。
-
 ## 最小验证脚本
 
 仓库内提供：
@@ -257,31 +296,3 @@ node ./scripts/verify-source-dedup.mjs
 node ./scripts/verify-log-query-filtering.mjs
 node ./scripts/verify-log-persistence.mjs
 ```
-
-脚本会检查：
-
-- `/v2/export/health` 可访问
-- `/v2/export/sources` 返回 JSON 数组
-- 可选校验来源数量是否符合预期
-- 来源快照字段完整且非空
-- 本地去重逻辑会合并同一来源维度的重复记录
-- 日志查询在无过滤、单字段过滤、多字段过滤与 `cursor/limit` 共存时满足预期
-- 持久化契约脚本会验证“写入后重启再读取”的链路
-
-## 开发依赖
-
-- `hdc`：连接设备、安装/拉起应用、查看 `hilog`
-- `ohpm`：依赖安装与包管理
-- `hvigorw`：构建与打包
-
-## 已知限制
-
-- 默认仍是内存版，若调用方不注入持久化队列，应用重启后日志不会保留。
-- `@cxy/webserver` 已接入，但后台常驻承载方式还没有绑定到具体 Ability 生命周期。
-- `RdbLogStore` 当前已经能通过 API 12 编译，但仍保留少量 ArkTS “可能抛异常” 警告，后续可以按显式错误处理继续收敛。
-
-## 后续 TODO
-
-- 将持久化队列接入具体 `Ability` 初始化流程
-- 绑定 `AppServiceExtensionAbility` 或等效承载层
-- 视需要继续清理 `RdbLogStore` 的 ArkTS 警告级异常处理提示
