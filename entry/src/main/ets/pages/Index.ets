@@ -1,15 +1,62 @@
-import { DemoLogCard, DemoSnapshot, DemoSourceCard, demoRuntime } from '../runtime/DemoRuntime'
+import { DemoGatewayDiscoveryCard, DemoLogCard, DemoSnapshot, DemoSourceCard, demoRuntime } from '../runtime/DemoRuntime'
 
 @Entry
 @Component
 struct Index {
   @State snapshot: DemoSnapshot = demoRuntime.snapshot()
+  private autoDiscoveryTriggered: boolean = false
+
+  aboutToAppear(): void {
+    if (this.autoDiscoveryTriggered) {
+      return
+    }
+
+    this.autoDiscoveryTriggered = true
+    console.info('Index.aboutToAppear auto-triggering gateway discovery once.')
+    this.snapshot = demoRuntime.beginGatewayDiscovery()
+    void this.refreshGatewayDiscovery()
+  }
 
   private runDemoBatch(): void {
     this.snapshot = demoRuntime.seedBatch()
     console.info(
       `Demo batch ${this.snapshot.batchIndex} written, queueSize=${this.snapshot.metrics.queueSize}, sources=${this.snapshot.sources.length}`
     )
+  }
+
+  private onDiscoverGatewayTap(): void {
+    this.snapshot = demoRuntime.beginGatewayDiscovery()
+    void this.refreshGatewayDiscovery()
+  }
+
+  private async refreshGatewayDiscovery(): Promise<void> {
+    this.snapshot = await demoRuntime.discoverGateway()
+  }
+
+  private discoveryBadgeLabel(card: DemoGatewayDiscoveryCard): string {
+    switch (card.state) {
+      case 'loading':
+        return 'discovering'
+      case 'success':
+        return 'success'
+      case 'failed':
+        return 'failed'
+      default:
+        return 'idle'
+    }
+  }
+
+  private ingestBadgeLabel(card: DemoGatewayDiscoveryCard): string {
+    switch (card.ingestState) {
+      case 'loading':
+        return 'ingesting'
+      case 'success':
+        return 'ingest ok'
+      case 'failed':
+        return 'ingest failed'
+      default:
+        return 'ingest idle'
+    }
   }
 
   build() {
@@ -42,6 +89,95 @@ struct Index {
               .borderRadius(999)
           }
           .alignItems(VerticalAlign.Center)
+        }
+        .padding(20)
+        .borderRadius(24)
+        .backgroundColor('rgba(9, 18, 31, 0.92)')
+        .border({
+          width: 1,
+          color: 'rgba(104, 143, 176, 0.25)'
+        })
+
+        Column({ space: 12 }) {
+          Row({ space: 10 }) {
+            Text('Gateway Discovery')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#F2F7FF')
+
+            Text(this.discoveryBadgeLabel(this.snapshot.gatewayDiscovery))
+              .fontSize(12)
+              .fontColor('#04121C')
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+              .backgroundColor('#74D3F7')
+              .borderRadius(999)
+          }
+          .alignItems(VerticalAlign.Center)
+
+          Text('点击后先尝试 mDNS，再回退到手动 DSN 10.0.2.2:18765，并请求 /v2/gateway/discovery。发现成功后会自动 POST /v2/logs:ingest 一条日志。')
+            .fontSize(13)
+            .fontColor('#9FB2C7')
+            .lineHeight(20)
+
+          Button('发现网关')
+            .type(ButtonType.Capsule)
+            .width('100%')
+            .height(54)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .backgroundColor('#74D3F7')
+            .fontColor('#04121C')
+            .onClick(() => {
+              void this.onDiscoverGatewayTap()
+            })
+
+          Column({ space: 4 }) {
+            Text(this.snapshot.gatewayDiscovery.title)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#F2F7FF')
+            Text(this.snapshot.gatewayDiscovery.detail)
+              .fontSize(13)
+              .fontColor('#A8BFD8')
+              .lineHeight(19)
+            Text(this.snapshot.gatewayDiscovery.timestamp)
+              .fontSize(12)
+              .fontColor('#74D3F7')
+          }
+          .padding(16)
+          .borderRadius(18)
+          .backgroundColor('rgba(15, 27, 42, 0.96)')
+
+          Column({ space: 10 }) {
+            Row({ space: 10 }) {
+              Text('Ingest Result')
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor('#F2F7FF')
+              Text(this.ingestBadgeLabel(this.snapshot.gatewayDiscovery))
+                .fontSize(12)
+                .fontColor('#04121C')
+                .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+                .backgroundColor('#F7C873')
+                .borderRadius(999)
+            }
+            .alignItems(VerticalAlign.Center)
+
+            Text(this.snapshot.gatewayDiscovery.ingestTitle)
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#F2F7FF')
+            Text(this.snapshot.gatewayDiscovery.ingestDetail)
+              .fontSize(13)
+              .fontColor('#A8BFD8')
+              .lineHeight(19)
+            Text(this.snapshot.gatewayDiscovery.ingestTimestamp)
+              .fontSize(12)
+              .fontColor('#F7C873')
+          }
+          .padding(16)
+          .borderRadius(18)
+          .backgroundColor('rgba(15, 27, 42, 0.96)')
         }
         .padding(20)
         .borderRadius(24)
