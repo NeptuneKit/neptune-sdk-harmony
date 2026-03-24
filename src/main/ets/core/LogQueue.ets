@@ -1,19 +1,15 @@
 import { IngestLogRecord, LogRecord, LOG_QUEUE_BATCH_SIZE, LOG_QUEUE_CAPACITY, LOG_QUEUE_FLUSH_INTERVAL_MS, LOG_QUEUE_RETRY_DELAYS_MS } from '../model/LogModels'
+import { LogStoreBase, QueueSnapshot } from './LogStoreBase'
+import { MemoryLogStore } from './MemoryLogStore'
 
-export interface QueueSnapshot {
-  size: number
-  capacity: number
-  droppedOverflow: number
-  lastEnqueuedAt: string | null
-}
+export { QueueSnapshot }
 
 export class LogQueue {
-  private records: LogRecord[] = []
-  private nextId: number = 1
-  private droppedOverflow: number = 0
-  private lastFlushedAtMs: number = 0
-  private totalExported: number = 0
-  private totalIngested: number = 0
+  private readonly store: LogStoreBase
+
+  constructor(store: LogStoreBase = new MemoryLogStore()) {
+    this.store = store
+  }
 
   readonly capacity: number = LOG_QUEUE_CAPACITY
   readonly batchSize: number = LOG_QUEUE_BATCH_SIZE
@@ -21,108 +17,46 @@ export class LogQueue {
   readonly retryDelaysMs: number[] = LOG_QUEUE_RETRY_DELAYS_MS
 
   enqueue(record: IngestLogRecord): LogRecord {
-    const stored: LogRecord = {
-      id: this.nextId,
-      ...record
-    }
-    this.nextId += 1
-    this.totalIngested += 1
-
-    if (this.records.length >= this.capacity) {
-      this.records.shift()
-      this.droppedOverflow += 1
-    }
-
-    this.records.push(stored)
-    return stored
+    return this.store.enqueue(record)
   }
 
   appendAll(records: IngestLogRecord[]): LogRecord[] {
-    const appended: LogRecord[] = []
-    for (const record of records) {
-      appended.push(this.enqueue(record))
-    }
-    return appended
+    return this.store.appendAll(records)
   }
 
   drain(limit: number = this.batchSize): LogRecord[] {
-    const drainSize = Math.max(0, Math.min(limit, this.records.length))
-    const drained = this.records.slice(0, drainSize)
-    this.records = this.records.slice(drainSize)
-    this.totalExported += drained.length
-    this.lastFlushedAtMs = Date.now()
-    return drained
+    return this.store.drain(limit)
   }
 
   peekAfter(cursor?: string, limit: number = this.batchSize, predicate?: (record: LogRecord) => boolean): LogRecord[] {
-    const normalizedLimit = Math.max(1, Math.min(limit, this.batchSize))
-    const records = this.recordsAfter(cursor)
-    return records.filter((item) => this.matchesPredicate(item, predicate)).slice(0, normalizedLimit)
+    return this.store.peekAfter(cursor, limit, predicate)
   }
 
   hasMoreAfter(cursor?: string, limit: number = this.batchSize, predicate?: (record: LogRecord) => boolean): boolean {
-    const normalizedLimit = Math.max(1, Math.min(limit, this.batchSize))
-    let matched = 0
-    for (const item of this.recordsAfter(cursor)) {
-      if (!this.matchesPredicate(item, predicate)) {
-        continue
-      }
-      matched += 1
-      if (matched > normalizedLimit) {
-        return true
-      }
-    }
-
-    return false
-  }
-
-  private recordsAfter(cursor?: string): LogRecord[] {
-    if (!cursor || cursor.trim().length === 0) {
-      return this.records
-    }
-
-    const cursorId = Number(cursor)
-    if (!Number.isFinite(cursorId)) {
-      return this.records
-    }
-
-    return this.records.filter((item) => item.id > cursorId)
-  }
-
-  private matchesPredicate(record: LogRecord, predicate?: (record: LogRecord) => boolean): boolean {
-    return predicate === undefined ? true : predicate(record)
+    return this.store.hasMoreAfter(cursor, limit, predicate)
   }
 
   shouldFlush(nowMs: number = Date.now()): boolean {
-    return nowMs - this.lastFlushedAtMs >= this.flushIntervalMs
+    return this.store.shouldFlush(nowMs)
   }
 
   markFlushed(nowMs: number = Date.now()): void {
-    this.lastFlushedAtMs = nowMs
+    this.store.markFlushed(nowMs)
   }
 
   snapshot(): QueueSnapshot {
-    return {
-      size: this.records.length,
-      capacity: this.capacity,
-      droppedOverflow: this.droppedOverflow,
-      lastEnqueuedAt: this.records.length > 0 ? this.records[this.records.length - 1].timestamp : null
-    }
+    return this.store.snapshot()
   }
 
   metrics(): { queueSize: number; queueCapacity: number; droppedOverflow: number; totalExported: number } {
-    return {
-      queueSize: this.records.length,
-      queueCapacity: this.capacity,
-      droppedOverflow: this.droppedOverflow,
-      totalExported: this.totalExported
-    }
+    return this.store.metrics()
   }
 
   totals(): { totalIngested: number; totalExported: number } {
-    return {
-      totalIngested: this.totalIngested,
-      totalExported: this.totalExported
-    }
+    return this.store.totals()
+  }
+
+  flush(): Promise<void> {
+    return this.store.flush()
   }
 }

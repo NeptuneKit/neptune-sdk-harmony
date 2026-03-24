@@ -56,6 +56,7 @@ export class ExportServer {
   }
 
   async stop(): Promise<void> {
+    await this.queue.flush()
     if (this.httpServer !== null) {
       await this.httpServer.stopServer()
     }
@@ -117,6 +118,7 @@ export class ExportServer {
   }
 
   sourcesSnapshot(): ExportSourceEntry[] {
+    this.ensureSourcesLoaded()
     return this.sources.map((source) => ({
       ...source
     }))
@@ -213,6 +215,17 @@ export class ExportServer {
       sdkVersion: record.source.sdkVersion,
       lastSeenAt: record.timestamp
     })
+  }
+
+  private ensureSourcesLoaded(): void {
+    if (this.sources.length > 0) {
+      return
+    }
+
+    const records = this.queue.peekAfter(undefined, LOG_QUEUE_CAPACITY)
+    for (const record of records) {
+      this.registerSourceFromRecord(record)
+    }
   }
 
   private hasSourceIdentity(

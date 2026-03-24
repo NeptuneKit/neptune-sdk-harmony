@@ -1,11 +1,12 @@
 # neptune-sdk-harmony
 
-NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，可以直接启动本地 HTTP 导出服务。
+NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供可切换的本地存储抽象。
 
 ## 当前能力
 
 - 统一 v2 日志模型定义
-- 本地内存队列，支持 overflow 计数
+- 默认内存队列，支持 overflow 计数
+- 可切换到 Harmony 官方 `ArkData` RDB 持久化后端
 - 基于 `@cxy/webserver` 的 HTTP 导出服务
 - 已注册导出路由：
   - `GET /v2/export/health`
@@ -29,6 +30,7 @@ ohpm install
 依赖：
 
 - `@cxy/webserver`
+- `@kit.ArkData`（持久化后端）
 
 ## 启动示例
 
@@ -56,6 +58,25 @@ exportServer.ingest({
   }
 })
 ```
+
+## 持久化示例
+
+在具备 Harmony `Context` 的应用内，可以先创建持久化队列，再传入导出服务：
+
+```ts
+import { createPersistentLogQueue, startExportServer } from 'neptune-sdk-harmony'
+
+const queue = await createPersistentLogQueue(getContext(), {
+  databaseName: 'neptune_sdk_harmony_logs.db'
+})
+
+const exportServer = await startExportServer(18765, queue, {
+  serviceName: 'neptune-harmony-debug',
+  version: '0.1.0'
+})
+```
+
+持久化队列会把日志写入本地 RDB，并在进程重启后恢复当前记录。`/v2/export/sources` 会在首次查询时从已持久化日志重建来源快照。
 
 `ingest()` 会在入队时自动注册来源快照，来源维度由以下字段共同决定：
 
@@ -117,6 +138,7 @@ exportServer.ingest({
 ./scripts/verify-sources-endpoint.sh http://127.0.0.1:18765 1
 node ./scripts/verify-source-dedup.mjs
 node ./scripts/verify-log-query-filtering.mjs
+node ./scripts/verify-log-persistence.mjs
 ```
 
 脚本会检查：
@@ -127,6 +149,7 @@ node ./scripts/verify-log-query-filtering.mjs
 - 来源快照字段完整且非空
 - 本地去重逻辑会合并同一来源维度的重复记录
 - 日志查询在无过滤、单字段过滤、多字段过滤与 `cursor/limit` 共存时满足预期
+- 持久化契约脚本会验证“写入后重启再读取”的链路
 
 ## 开发依赖
 
@@ -136,12 +159,12 @@ node ./scripts/verify-log-query-filtering.mjs
 
 ## 已知限制
 
-- 当前存储仍是内存版，应用重启后日志不会保留。
+- 默认仍是内存版，若调用方不注入持久化队列，应用重启后日志不会保留。
 - 本轮没有在真机或模拟器上跑 Harmony 构建，当前验证以静态自检 + 运行期验证脚本为主。
 - `@cxy/webserver` 已接入，但后台常驻承载方式还没有绑定到具体 Ability 生命周期。
 
 ## 后续 TODO
 
-- 接入持久化存储，替换纯内存队列
+- 将持久化队列接入具体 `Ability` 初始化流程
 - 绑定 `AppServiceExtensionAbility` 或等效承载层
 - 补齐 `hvigorw` 构建配置与最小运行样例

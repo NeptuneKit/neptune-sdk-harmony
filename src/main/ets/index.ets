@@ -1,3 +1,7 @@
 export * from './model/LogModels'
+export * from './core/LogStoreBase'
+export * from './core/MemoryLogStore'
+export * from './core/RdbLogStore'
 export * from './core/LogQueue'
+export * from './core/LogQueueFactory'
 export * from './server/ExportServer'
