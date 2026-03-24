@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_harmony_build:
+        description: Run Harmony build after validation
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate (runner-safe)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Shell syntax check
+        shell: bash
+        run: |
+          bash -n hvigorw
+          bash -n scripts/verify-sources-endpoint.sh
+          sh -n scripts/sync-harmony-module.sh
+
+      - name: Run repository checks
+        shell: bash
+        run: |
+          node ./scripts/verify-source-dedup.mjs
+          node ./scripts/verify-log-query-filtering.mjs
+          node ./scripts/verify-log-persistence.mjs
+
+  harmony-build:
+    name: Harmony build
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_harmony_build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Harmony toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          can_run=true
+
+          if ! command -v ohpm >/dev/null 2>&1; then
+            echo "ohpm is not available on this runner; skipping Harmony build."
+            can_run=false
+          fi
+
+          if [ "${can_run}" = true ]; then
+            if [ -n "${HVIGORW_BIN:-}" ] && [ -x "${HVIGORW_BIN}" ]; then
+              :
+            elif [ -d "/Applications/DevEco-Studio.app/Contents/sdk" ]; then
+              :
+            elif [ -x "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" ]; then
+              :
+            else
+              echo "Harmony SDK / hvigorw runtime is not available; skipping Harmony build."
+              can_run=false
+            fi
+          fi
+
+          echo "can_run=${can_run}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install Harmony dependencies
+        if: ${{ steps.toolchain.outputs.can_run == 'true' }}
+        shell: bash
+        run: ohpm install --all
+
+      - name: Assemble HAR
+        if: ${{ steps.toolchain.outputs.can_run == 'true' }}
+        shell: bash
+        run: ./hvigorw --mode module -p module=library assembleHar --no-daemon

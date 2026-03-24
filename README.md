@@ -109,6 +109,28 @@ ohpm install --all
 - `assembleHar` 目前可成功产出 `HAR`。
 - 构建期间仍会有若干 “Function may throw exceptions” 的 ArkTS 警告，以及 HAR 签名配置缺省警告；它们不会阻塞本地 `HAR` 产物生成。
 
+## CI
+
+仓库已配置 `.github/workflows/ci.yml`，分成两条路径：
+
+- `push(main)` / `pull_request`：只跑标准 runner 可执行的校验，不依赖 DevEco 环境
+- `workflow_dispatch`：将 `run_harmony_build` 显式设为 `true` 时，才会额外尝试执行 `ohpm install --all` 和 `./hvigorw --mode module -p module=library assembleHar --no-daemon`
+
+说明：
+
+- 默认 CI 不会因为缺少 `ohpm` / DevEco / Harmony SDK 而失败
+- 手动构建只适合已经具备 Harmony 工具链的 runner
+- 本地对齐默认 CI 的命令：
+
+```bash
+bash -n hvigorw
+bash -n scripts/verify-sources-endpoint.sh
+sh -n scripts/sync-harmony-module.sh
+node ./scripts/verify-source-dedup.mjs
+node ./scripts/verify-log-query-filtering.mjs
+node ./scripts/verify-log-persistence.mjs
+```
+
 ## 启动示例
 
 ```ts
