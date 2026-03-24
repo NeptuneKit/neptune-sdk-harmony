@@ -42,6 +42,7 @@ jobs:
           node ./scripts/verify-source-dedup.mjs
           node ./scripts/verify-log-query-filtering.mjs
           node ./scripts/verify-log-persistence.mjs
+          node ./scripts/demo-smoke.mjs
 
   harmony-build:
     name: Harmony build

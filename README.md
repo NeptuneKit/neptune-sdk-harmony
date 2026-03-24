@@ -129,7 +129,25 @@ sh -n scripts/sync-harmony-module.sh
 node ./scripts/verify-source-dedup.mjs
 node ./scripts/verify-log-query-filtering.mjs
 node ./scripts/verify-log-persistence.mjs
+node ./scripts/demo-smoke.mjs
 ```
+
+## Demo 冒烟
+
+仓库内提供了一个最小 Node demo 冒烟脚本，用于在本地走一遍导出链路并输出摘要：
+
+```bash
+node ./scripts/demo-smoke.mjs
+```
+
+脚本会：
+
+- 启动一个本地参考导出服务，暴露 `/v2/export/health`、`/v2/export/metrics`、`/v2/export/logs`、`/v2/export/sources`
+- 注入 3 条 demo 日志，其中 2 条会命中同一个 Harmony 来源快照
+- 拉取导出结果并断言关键字段
+- 输出一个简短摘要，便于快速确认接入链路是否正常
+
+当前脚本是 CLI 可执行的参考 smoke，不依赖 Harmony 运行时，方便在没有真机/模拟器环境时先确认 SDK 导出契约；后续接入实际 Harmony 应用后，可以把同样的导出路径替换成真实服务端点继续复用。
 
 ## 启动示例
 
