@@ -1,9 +1,6 @@
 {
-  "name": "neptune-sdk-harmony",
-  "version": "0.1.0",
-  "description": "NeptuneKit v2 Harmony SDK with local log export skeleton",
-  "main": "src/main/ets/index.ets",
-  "dependencies": {
-    "@cxy/webserver": "^2.0.2"
-  }
+  "modelVersion": "5.0.0",
+  "description": "Project shell for building the neptune-sdk-harmony HAR module.",
+  "dependencies": {},
+  "devDependencies": {}
 }

@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+
+if [ -x "${script_dir}/scripts/sync-harmony-module.sh" ] && [ -d "${script_dir}/library" ]; then
+  "${script_dir}/scripts/sync-harmony-module.sh"
+fi
+
+if [ -z "${DEVECO_SDK_HOME:-}" ] && [ -d "/Applications/DevEco-Studio.app/Contents/sdk" ]; then
+  export DEVECO_SDK_HOME="/Applications/DevEco-Studio.app/Contents/sdk"
+fi
+
+if [ -z "${OHOS_BASE_SDK_HOME:-}" ] && [ -n "${DEVECO_SDK_HOME:-}" ] && [ -d "${DEVECO_SDK_HOME}/default/openharmony" ]; then
+  export OHOS_BASE_SDK_HOME="${DEVECO_SDK_HOME}/default/openharmony"
+fi
+
+if [ -n "${HVIGORW_BIN:-}" ] && [ -x "${HVIGORW_BIN}" ]; then
+  exec "${HVIGORW_BIN}" "$@"
+fi
+
+if command -v hvigorw >/dev/null 2>&1; then
+  exec "$(command -v hvigorw)" "$@"
+fi
+
+if [ -x "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" ]; then
+  exec "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" "$@"
+fi
+
+echo "hvigorw not found. Install Harmony Command Line Tools or set HVIGORW_BIN." >&2
+exit 127

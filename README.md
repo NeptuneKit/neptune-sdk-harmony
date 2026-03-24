@@ -21,16 +21,75 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供�
 - flush 间隔：`1s`
 - 重试阶梯：`0.5s / 1s / 2s / 4s / 8s`
 
+## 工程结构
+
+当前仓库已经补齐为 Harmony 工程壳 + `HAR` library 模块：
+
+- 项目根目录：`build-profile.json5`、`hvigorfile.ts`、`hvigor/hvigor-config.json5`、`AppScope/app.json5`
+- `library/`：最小可构建 `HAR` 模块配置
+- `src/main/ets/`：SDK 源码主目录，仍然是唯一源码来源
+- `scripts/sync-harmony-module.sh`：构建前把顶层源码同步到 `library/src/main/ets`
+- `./hvigorw`：本地包装脚本，会自动做源码同步并尝试补齐常见 SDK 环境变量
+
 ## 安装依赖
 
 ```bash
-ohpm install
+ohpm install --all
 ```
 
-依赖：
+当前模块依赖：
 
 - `@cxy/webserver`
 - `@kit.ArkData`（持久化后端）
+
+## 构建步骤
+
+### 前置工具
+
+需要本机已安装 Harmony Command Line Tools，至少包含：
+
+- `ohpm`
+- `hvigorw`
+
+如果本机使用 DevEco Studio 默认安装路径，仓库内的 `./hvigorw` 会自动尝试设置：
+
+- `DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk`
+- `OHOS_BASE_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony`
+
+### 可执行命令
+
+```bash
+./hvigorw --mode project tasks --no-daemon
+./hvigorw --mode project clean --no-daemon
+./hvigorw --mode module -p module=library assembleHar --no-daemon
+```
+
+说明：
+
+- `tasks`：验证项目壳和 `library` 模块已被 `hvigor` 正确识别。
+- `clean`：验证项目级清理任务可执行。
+- `assembleHar`：尝试编译 `HAR` 模块，是当前最接近真实 SDK 产物的构建命令。
+
+### 2026-03-24 本机验证结果
+
+已验证通过：
+
+- `./hvigorw --mode project tasks --no-daemon`
+- `./hvigorw --mode project clean --no-daemon`
+
+已验证失败但拿到明确阻塞：
+
+- `./hvigorw --mode module -p module=library assembleHar --no-daemon`
+
+当前阻塞项：
+
+1. 现有 ArkTS 源码还未完全收敛到 Harmony ArkTS 严格子集，主要集中在：
+   - `src/main/ets/core/RdbLogStore.ets`
+   - `src/main/ets/core/LogStoreBase.ets`
+   - `src/main/ets/core/LogQueue.ets`
+   - `src/main/ets/server/ExportServer.ets`
+2. `@cxy/webserver` 依赖未能在本机通过 `ohpm install --all` 成功拉取；当前 registry 返回 TLS 连接重置。
+3. `RdbLogStore` 当前仍使用不符合 API 12 文档的 ArkData 导入/类型写法，后续需要进一步按 ArkTS 规则收敛。
 
 ## 启动示例
 
@@ -160,11 +219,12 @@ node ./scripts/verify-log-persistence.mjs
 ## 已知限制
 
 - 默认仍是内存版，若调用方不注入持久化队列，应用重启后日志不会保留。
-- 本轮没有在真机或模拟器上跑 Harmony 构建，当前验证以静态自检 + 运行期验证脚本为主。
+- 当前仓库已具备可审查的 Harmony 工程壳，但 `assembleHar` 仍受 ArkTS 语法兼容性和私有依赖拉取阻塞。
 - `@cxy/webserver` 已接入，但后台常驻承载方式还没有绑定到具体 Ability 生命周期。
 
 ## 后续 TODO
 
+- 将 `RdbLogStore` 和 `ExportServer` 收敛到 Harmony ArkTS 严格语法子集
+- 恢复 `@cxy/webserver` 在当前机器上的可安装性，或补官方可审查的离线依赖方案
 - 将持久化队列接入具体 `Ability` 初始化流程
 - 绑定 `AppServiceExtensionAbility` 或等效承载层
-- 补齐 `hvigorw` 构建配置与最小运行样例
