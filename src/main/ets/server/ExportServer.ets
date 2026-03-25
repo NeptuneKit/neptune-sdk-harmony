@@ -313,6 +313,7 @@ export class ExportServer {
     if (commandRequest === null) {
       return {
         requestId: this.makeRequestId('invalid'),
+        direction: 'client_to_cli',
         command: 'unknown',
         status: 'error',
         message: 'invalid command request',
@@ -323,6 +324,7 @@ export class ExportServer {
     if (commandRequest.direction !== 'cli_to_client') {
       return {
         requestId: this.makeRequestId(commandRequest.requestId),
+        direction: 'client_to_cli',
         command: 'unknown',
         status: 'error',
         message: 'unsupported direction',
@@ -332,6 +334,7 @@ export class ExportServer {
     if (commandRequest.kind !== 'command') {
       return {
         requestId: this.makeRequestId(commandRequest.requestId),
+        direction: 'client_to_cli',
         command: 'unknown',
         status: 'error',
         message: 'unsupported message kind',
@@ -344,6 +347,7 @@ export class ExportServer {
     if (command !== 'ping') {
       return {
         requestId,
+        direction: 'client_to_cli',
         command,
         status: 'error',
         message: `unsupported command ${command}`,
@@ -353,6 +357,7 @@ export class ExportServer {
 
     return {
       requestId,
+      direction: 'client_to_cli',
       command,
       status: 'ok',
       message: 'ping acknowledged',

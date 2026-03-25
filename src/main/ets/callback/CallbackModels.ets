@@ -21,6 +21,7 @@ export interface GatewayClientBusEnvelope {
 
 export interface GatewayClientCommandAck {
   requestId?: string
+  direction: BusDirection
   command?: string
   status: BusAckStatus
   message?: string
