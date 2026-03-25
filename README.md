@@ -8,6 +8,9 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供�
 - 默认内存队列，支持 overflow 计数
 - 可切换到 Harmony 官方 `ArkData` RDB 持久化后端
 - 基于 `@cxy/webserver` 的 HTTP 导出服务
+- 网关发现支持 `mDNS` 候选优先，失败后回退手动 `DSN`
+- 本地主动回调模型支持 `POST /v2/client/command` 与 `POST /v2/clients:register`
+- 基于 `@kit.NetworkKit` 的 WebSocket 客户端仍保留为独立能力，但默认不作为 SDK->gateway 主链路
 - 已注册导出路由：
   - `GET /v2/export/health`
   - `GET /v2/export/metrics`
@@ -85,6 +88,7 @@ ohpm install --all
 ./hvigorw --mode module -p module=library assembleHar --no-daemon
 ./hvigorw --mode module -p module=entry assembleHap --no-daemon
 ./scripts/build-demo-entry.sh
+./scripts/start-demo-via-hdc.sh
 ```
 
 说明：
@@ -94,8 +98,9 @@ ohpm install --all
 - `assembleHar`：尝试编译 `HAR` 模块，是当前最接近真实 SDK 产物的构建命令。
 - `assembleHap`：尝试编译 `entry` Demo App 的 HAP 产物。
 - `scripts/build-demo-entry.sh`：`assembleHap` 的便捷包装脚本。
+- `scripts/start-demo-via-hdc.sh`：自动检测 target、安装 HAP、尽力唤醒/解锁并拉起 `EntryAbility`。
 
-### 2026-03-24 本机验证结果
+### 2026-03-25 本机验证结果
 
 已验证通过：
 
@@ -104,6 +109,7 @@ ohpm install --all
 - `./hvigorw --mode project clean --no-daemon`
 - `./hvigorw --mode module -p module=library assembleHar --no-daemon`
 - `node ./scripts/verify-demo-entry.mjs`
+- `node ./scripts/verify-client-callback-contract.mjs`
 - `./hvigorw --mode module -p module=entry assembleHap --no-daemon`
 - `./scripts/build-demo-entry.sh`
 
@@ -115,6 +121,7 @@ ohpm install --all
 4. `entry` Demo App 通过本地 `library` HAR 引用 Neptune SDK，不复制核心实现。
 5. `AppScope/app.json5` 已补齐 `icon` / `label`，`entry/src/main/module.json5` 已补齐 `startWindowIcon` / `startWindowBackground`。
 6. `build-profile.json5` 已开启 `buildOption.strictMode.useNormalizedOHMUrl`，满足 `@cxy/webserver` 的 bytecode HAR 约束。
+7. 主动回调模型已接入，且 demo 默认不再把 WS 当作启动主链路。
 
 构建说明：
 
@@ -145,6 +152,8 @@ node ./scripts/verify-log-query-filtering.mjs
 node ./scripts/verify-log-persistence.mjs
 node ./scripts/demo-smoke.mjs
 node ./scripts/verify-demo-entry.mjs
+node ./scripts/verify-client-callback-contract.mjs
+node ./scripts/verify-gateway-ws-contract.mjs
 ```
 
 ## Demo 冒烟
@@ -169,6 +178,8 @@ node ./scripts/demo-smoke.mjs
 `entry/` 是一个可以直接跑到 Harmony 模拟器上的 Stage HAP，它通过本地 `library` HAR 引用 Neptune SDK，然后在页面上做三件事：
 
 - 点击按钮向 SDK 写入一批示例日志
+- 点击“发现网关”按钮，走 `mDNS -> 手动 DSN -> /v2/gateway/discovery` 的发现链路
+- 启动时后台建立本地 callback HTTP 服务，并在 discovery 结果变化时向网关执行 `POST /v2/clients:register`
 - 刷新 `metrics` 概览
 - 刷新 `sources` 和最近日志摘要
 
@@ -191,8 +202,28 @@ node ./scripts/demo-smoke.mjs
 3. 选择 `entry` 模块和一个 Harmony 模拟器。
 4. 点击 Run。
 5. 打开页面后点击“写入 Demo 日志批次”按钮。
+6. 本地 callback 服务会在后台启动，发现到网关后会自动注册并进入 30 秒续约节奏。
 
 ### hdc 跑法
+
+推荐直接执行一键脚本：
+
+```bash
+./scripts/start-demo-via-hdc.sh
+```
+
+脚本会：
+
+- 自动检测已连接的 hdc target，或使用 `--target` / `HDC_TARGET`
+- 自动寻找 `entry/build/default/outputs/default/entry-default-unsigned.hap`
+- 如果 HAP 不存在，默认先执行 `./scripts/build-demo-entry.sh`
+- 在启动前尽力执行 `power-shell timeout -o`、`power-shell wakeup` 和 `uinput swipe`
+- 安装 HAP 后执行 `aa start -b io.github.neptune.sdk.harmony -a EntryAbility -W`
+- 最后用 `aa dump -l EntryAbility` 复核是否已进入前台
+
+如果脚本仍提示 `screen locked during launch`，它会打印最短人工步骤并等待你按回车后重试。
+
+手工 hdc 流程仍然可用：
 
 1. 先在 DevEco Studio 启动一个 Harmony 模拟器。
 2. 用下面的命令安装 HAP：
@@ -213,7 +244,9 @@ hdc shell bm dump -a
 hdc shell aa start -b io.github.neptune.sdk.harmony -a EntryAbility
 ```
 
-5. 回到模拟器，点击页面按钮即可看到 metrics / sources 摘要刷新。
+5. 如遇 `screen locked during launch`，先在模拟器上解锁再重试。
+6. 回到模拟器，点击页面按钮即可看到 metrics / sources 摘要刷新。
+7. 点击“发现网关”按钮，确认页面会显示成功结果或失败原因，不影响现有 batch/metrics/sources 面板。
 
 ## 启动示例
 
@@ -242,6 +275,68 @@ exportServer.ingest({
 })
 ```
 
+## 网关发现
+
+Harmony SDK 侧现在提供一个可注入的网关发现解析器：
+
+- 先尝试 `mDNS` 产生的候选地址
+- 如果 `mDNS` 不可用，再回退到手动 `DSN`
+- 对每个候选都会请求 `GET /v2/gateway/discovery`
+- 只有当返回体包含有效的 `host`、`port`、`version` 时才算发现成功
+- `mDNS` 需要在 `GatewayDiscoveryConfig` 中传入 `mdnsContext`（通常是 `UIAbilityContext`）
+- 可选配置 `mdnsServiceType`（默认 `_neptune._tcp`）和 `mdnsServiceName`（用于精确匹配实例名）
+
+### 用法
+
+```ts
+import { createGatewayDiscoveryResolver } from 'neptune-sdk-harmony'
+
+const resolver = createGatewayDiscoveryResolver()
+const gateway = await resolver.discover({
+  manualDsn: '10.0.2.2:18765',
+  mdnsContext: this.getUIContext().getHostContext(),
+  requestTimeoutMs: 2000
+})
+
+console.info(gateway.host, gateway.port, gateway.version)
+```
+
+### 当前边界
+
+- 默认 `mDNS` 提供器已经接入 `@kit.NetworkKit`；如果未传 `mdnsContext`，会自动返回空候选并回退到手动 DSN。
+- 若你有自定义发现策略，仍可自定义实现 `GatewayDiscoveryMdnsProvider` 并注入替换默认实现。
+- 手动 `DSN` 仍然是可靠回退路径，适合模拟器和局域网直连调试。
+
+## WebSocket 客户端
+
+Harmony SDK 侧还提供一个后台 WebSocket 客户端，和 discovery / 手动 DSN 共享同一条端点解析链路：
+
+- 启动时先解析网关端点，再连接 `ws://<host>:<port>/v2/ws`
+- 建连后立即发送 `{"type":"hello","role":"sdk"}`
+- 每 15 秒发送一次 heartbeat
+- 如果 45 秒没有收到任何活动，进入重连流程
+- 重连退避为 `0.5s / 1s / 2s / 4s / 8s`
+- 收到 `command.dispatch` 且 `command === 'ping'` 时，立即回 `command.ack`
+- discovery 结果或手动 DSN 变化时，会切换到新的端点并重连
+
+### 用法
+
+```ts
+import { GatewayWsManager } from 'neptune-sdk-harmony'
+
+const manager = new GatewayWsManager()
+await manager.start({
+  manualDsn: '127.0.0.1:18765'
+})
+
+await manager.reconnect()
+```
+
+### 当前边界
+
+- API 12 没有可直接依赖的应用层 ping/pong 帧，因此这里用应用层 heartbeat 和失联计时实现保活。
+- 默认 `GatewayWsManager` 只做连接管理，不把收到的消息再转发给业务层；后续如果要挂入真实命令分发，只需要在 `GatewayWsClient` 的消息分支扩展即可。
+
 ## 持久化示例
 
 在具备 Harmony `Context` 的应用内，可以先创建持久化队列，再传入导出服务：
@@ -261,16 +356,15 @@ const exportServer = await startExportServer(18765, queue, {
 
 持久化队列会把日志写入本地 RDB，并在进程重启后恢复当前记录。`/v2/export/sources` 会在首次查询时从已持久化日志重建来源快照。
 
-`ingest()` 会在入队时自动注册来源快照，来源维度由以下字段共同决定：
+`ingest()` 会在入队时自动注册来源快照，来源主键由以下字段共同决定：
 
-- `sdkName`
-- `sdkVersion`
 - `platform`
 - `appId`
-- `sessionId`
 - `deviceId`
 
-同一维度重复上报时，只会更新对应来源的 `lastSeenAt`。
+`sessionId` 仅作为展示字段保留，不参与来源主键。
+
+同一主键重复上报时，只会更新对应来源的 `lastSeenAt`。
 
 启动后可访问：
 

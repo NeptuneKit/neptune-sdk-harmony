@@ -12,6 +12,7 @@ struct Index {
     }
 
     this.autoDiscoveryTriggered = true
+    demoRuntime.setGatewayDiscoveryContext(this.getUIContext().getHostContext() as Object)
     console.info('Index.aboutToAppear auto-triggering gateway discovery once.')
     this.snapshot = demoRuntime.beginGatewayDiscovery()
     void this.refreshGatewayDiscovery()

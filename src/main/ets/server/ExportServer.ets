@@ -11,6 +11,10 @@ import {
   LOG_QUEUE_BATCH_SIZE,
   LOG_QUEUE_CAPACITY
 } from '../model/LogModels'
+import {
+  GatewayClientCommandAck,
+  GatewayClientCommandRequest
+} from '../callback/CallbackModels'
 import { LogQueue } from '../core/LogQueue'
 
 export interface ExportServerOptions {
@@ -28,6 +32,7 @@ export class ExportServer {
   private httpServer: HttpServer | null = null
   private running: boolean = false
   private listeningPort: number | null = null
+  private commandSequence: number = 0
 
   constructor(queue: LogQueue = new LogQueue(), options: ExportServerOptions = {}) {
     this.queue = queue
@@ -42,16 +47,19 @@ export class ExportServer {
     }
 
     const server = new HttpServer()
+    server.json()
     this.registerRoutes(server)
     this.httpServer = server
     return server
   }
 
-  async start(port: number): Promise<socket.NetAddress | null> {
+  async start(port: number, address: string = '0.0.0.0'): Promise<socket.NetAddress | null> {
     const server = this.createHttpServer()
-    const info = await server.startServer(port)
+    const info = await server.startServer(port, address)
     this.running = info !== null && info !== undefined
-    this.listeningPort = this.running ? port : null
+    this.listeningPort = this.running && info !== null && info !== undefined && info.port !== undefined
+      ? info.port
+      : null
     return info ?? null
   }
 
@@ -152,6 +160,10 @@ export class ExportServer {
     server.get('/v2/export/sources', (_req: HttpRequest, res: HttpResponse) => {
       res.status(200).json(this.sourcesSnapshot() as ESObject)
     })
+
+    server.post('/v2/client/command', (req: HttpRequest, res: HttpResponse) => {
+      res.status(200).json(this.handleClientCommand(req) as ESObject)
+    })
   }
 
   private parseQuery(req: HttpRequest): LogQueryOptions {
@@ -201,7 +213,7 @@ export class ExportServer {
 
     const sdkName = record.source.sdkName
     const sdkVersion = record.source.sdkVersion
-    if (!this.hasSourceIdentity(sdkName, sdkVersion, record.platform, record.appId, record.sessionId, record.deviceId)) {
+    if (!this.hasSourceIdentity(sdkName, sdkVersion, record.platform, record.appId, record.deviceId)) {
       return
     }
 
@@ -233,14 +245,12 @@ export class ExportServer {
     sdkVersion: string | undefined,
     platform: string | undefined,
     appId: string | undefined,
-    sessionId: string | undefined,
     deviceId: string | undefined
   ): boolean {
     return this.normalizeSourceField(sdkName) !== null &&
       this.normalizeSourceField(sdkVersion) !== null &&
       this.normalizeSourceField(platform) !== null &&
       this.normalizeSourceField(appId) !== null &&
-      this.normalizeSourceField(sessionId) !== null &&
       this.normalizeSourceField(deviceId) !== null
   }
 
@@ -249,20 +259,18 @@ export class ExportServer {
     const sdkVersion = this.normalizeSourceField(source.sdkVersion)
     const platform = this.normalizeSourceField(source.platform)
     const appId = this.normalizeSourceField(source.appId)
-    const sessionId = this.normalizeSourceField(source.sessionId)
     const deviceId = this.normalizeSourceField(source.deviceId)
     if (
       sdkName === null ||
       sdkVersion === null ||
       platform === null ||
       appId === null ||
-      sessionId === null ||
       deviceId === null
     ) {
       return null
     }
 
-    return [sdkName, sdkVersion, platform, appId, sessionId, deviceId].join('::')
+    return [platform, appId, deviceId].join('::')
   }
 
   private normalizeSourceField(value: string | undefined | null): string | null {
@@ -297,6 +305,118 @@ export class ExportServer {
       sdkVersion: source.sdkVersion,
       lastSeenAt: source.lastSeenAt
     }
+  }
+
+  private handleClientCommand(req: HttpRequest): GatewayClientCommandAck {
+    const commandRequest = this.parseClientCommandRequest(req)
+    const timestamp = new Date().toISOString()
+    if (commandRequest === null) {
+      return {
+        requestId: this.makeRequestId('invalid'),
+        command: 'unknown',
+        status: 'error',
+        message: 'invalid command request',
+        timestamp
+      }
+    }
+
+    const command = this.normalizeCommand(commandRequest.command)
+    const requestId = this.makeRequestId(commandRequest.requestId)
+    const version = this.normalizeCommandVersion(commandRequest.version)
+    if (version !== 1 || command !== 'ping') {
+      return {
+        requestId,
+        command,
+        status: 'error',
+        message: version !== 1 ? `unsupported command version ${String(version)}` : `unsupported command ${command}`,
+        timestamp
+      }
+    }
+
+    return {
+      requestId,
+      command,
+      status: 'ok',
+      message: 'ping acknowledged',
+      timestamp
+    }
+  }
+
+  private parseClientCommandRequest(req: HttpRequest): GatewayClientCommandRequest | null {
+    try {
+      const rawText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+      if (rawText === undefined || rawText === null) {
+        return null
+      }
+      const parsed = JSON.parse(rawText) as Record<string, string | number | boolean | null | undefined>
+      if (parsed === undefined || parsed === null || typeof parsed !== 'object') {
+        return null
+      }
+      const payload = parsed as Record<string, string | number | boolean | null | undefined>
+      return {
+        requestId: this.normalizeTextValue(payload.requestId),
+        command: this.normalizeTextValue(payload.command),
+        version: this.normalizeCommandVersionValue(payload.version),
+        payload: undefined
+      }
+    } catch (_error) {
+      return null
+    }
+  }
+
+  private normalizeCommand(command: string | undefined | null): string {
+    const normalized = this.normalizeTextValue(command)
+    return normalized === undefined ? 'unknown' : normalized
+  }
+
+  private normalizeCommandVersion(value: number | string | boolean | undefined | null): number {
+    if (typeof value === 'number') {
+      return Math.trunc(value)
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase().replace(/^v/, '')
+      const parsed = Number.parseInt(normalized, 10)
+      return Number.isFinite(parsed) ? parsed : 1
+    }
+
+    return 1
+  }
+
+  private normalizeCommandVersionValue(value: string | number | boolean | undefined | null): string | number | undefined {
+    if (value === undefined || value === null) {
+      return undefined
+    }
+
+    if (typeof value === 'number') {
+      return Math.trunc(value)
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim()
+      return normalized.length > 0 ? normalized : undefined
+    }
+
+    return undefined
+  }
+
+  private makeRequestId(value: string | undefined | null): string {
+    const normalized = this.normalizeTextValue(value)
+    if (normalized !== undefined) {
+      return normalized
+    }
+
+    this.commandSequence += 1
+    return `local-command-${String(this.commandSequence)}-${Date.now()}`
+  }
+
+  private normalizeTextValue(value: string | number | boolean | undefined | null): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined
+    }
+
+    const normalized = String(value).trim()
+    return normalized.length > 0 ? normalized : undefined
   }
 }
 

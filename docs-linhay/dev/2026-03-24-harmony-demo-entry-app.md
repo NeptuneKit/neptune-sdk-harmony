@@ -47,6 +47,12 @@ Demo 页面对 SDK 的使用方式是：
 ./scripts/build-demo-entry.sh
 ```
 
+- 一键拉起脚本：
+
+```bash
+./scripts/start-demo-via-hdc.sh
+```
+
 ## 模拟器运行步骤
 
 ### DevEco Studio
@@ -58,6 +64,25 @@ Demo 页面对 SDK 的使用方式是：
 5. 在模拟器中打开 demo 页面，点击“写入 Demo 日志批次”按钮。
 
 ### hdc
+
+推荐直接使用一键脚本：
+
+```bash
+./scripts/start-demo-via-hdc.sh
+```
+
+脚本行为：
+
+- 自动识别已连接的 hdc target，或使用 `--target` / `HDC_TARGET`
+- 自动寻找 `entry/build/default/outputs/default/entry-default-unsigned.hap`
+- 如果 HAP 不存在，默认先执行 `./scripts/build-demo-entry.sh`
+- 启动前会尽力执行 `power-shell timeout -o`、`power-shell wakeup` 和 `uinput swipe`
+- 安装完成后执行 `aa start -b io.github.neptune.sdk.harmony -a EntryAbility -W`
+- 通过 `aa dump -l EntryAbility` 复核是否已进入前台
+
+如果自动解锁仍然失败，脚本会打印最短人工步骤并等待回车后重试。
+
+手工流程仍然保留：
 
 1. 先用 DevEco Studio 启动一个 Harmony 模拟器。
 2. 安装 Demo HAP：
@@ -78,7 +103,8 @@ hdc shell bm dump -a
 hdc shell aa start -b io.github.neptune.sdk.harmony -a EntryAbility
 ```
 
-5. 回到模拟器界面，点击页面上的按钮验证日志写入。
+5. 如果遇到 `screen locked during launch`，先解锁模拟器再重试。
+6. 回到模拟器界面，点击页面上的按钮验证日志写入。
 
 ## 校验策略
 

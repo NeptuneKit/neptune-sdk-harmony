@@ -10,7 +10,8 @@ import {
   LogQueue,
   LogRecord,
   Platform,
-  LogSourceInfo
+  LogSourceInfo,
+  GatewayClientCallbackManager
 } from 'neptune-sdk-harmony'
 import { GatewayIngestHttpClient, GatewayIngestResult } from './GatewayIngestHttpClient'
 
@@ -52,6 +53,7 @@ const DEMO_SERVICE_NAME = 'neptune-sdk-harmony-demo'
 const DEMO_VERSION = '0.1.0'
 const DEMO_MANUAL_DSN = '10.0.2.2:18765'
 const DEMO_MANUAL_ENDPOINT_URL = 'http://10.0.2.2:18765'
+const DEMO_CALLBACK_LISTEN_PORT = 28767
 const DEMO_PLATFORM: Platform = 'harmony'
 const DEMO_APP_ID = 'io.github.neptune.sdk.harmony.demo'
 const DEMO_DEVICE_ALPHA = 'sim-device-alpha'
@@ -63,8 +65,10 @@ const DEMO_INGEST_SESSION_ID = 'sim-session-discovery'
 
 class DemoRuntime {
   private readonly exportServer: ExportServer
+  private readonly callbackManager: GatewayClientCallbackManager
   private readonly gatewayDiscoveryResolver = createGatewayDiscoveryResolver()
   private readonly gatewayIngestClient = new GatewayIngestHttpClient()
+  private gatewayDiscoveryContext: Object | undefined = undefined
   private batchIndex: number = 0
   private gatewayDiscovery: DemoGatewayDiscoveryCard = {
     state: 'idle',
@@ -82,6 +86,36 @@ class DemoRuntime {
       serviceName: DEMO_SERVICE_NAME,
       version: DEMO_VERSION
     })
+    this.callbackManager = new GatewayClientCallbackManager(this.exportServer, undefined, {
+      listenAddress: '0.0.0.0',
+      listenPort: DEMO_CALLBACK_LISTEN_PORT,
+      platform: DEMO_PLATFORM,
+      appId: DEMO_APP_ID,
+      deviceId: DEMO_DEVICE_ALPHA,
+      sessionId: DEMO_SESSION_ALPHA,
+      sdkName: DEMO_SERVICE_NAME,
+      sdkVersion: DEMO_VERSION,
+      renewIntervalMs: 30000
+    })
+    void this.callbackManager
+      .start()
+      .then(() => this.callbackManager.setGatewayEndpoint(DEMO_MANUAL_ENDPOINT_URL))
+      .then((result) => {
+        if (result !== null) {
+          console.info(`Callback manager auto register state=${result.state} detail=${result.detail}`)
+        }
+      })
+      .catch((error: Error) => {
+        console.error(`Callback manager start failed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+  }
+
+  setGatewayDiscoveryContext(context: Object | undefined | null): void {
+    if (context === undefined || context === null) {
+      return
+    }
+
+    this.gatewayDiscoveryContext = context
   }
 
   seedBatch(): DemoSnapshot {
@@ -114,13 +148,19 @@ class DemoRuntime {
   async discoverGateway(): Promise<DemoSnapshot> {
     try {
       const result = await this.gatewayDiscoveryResolver.discover({
-        manualDsn: DEMO_MANUAL_DSN
+        manualDsn: DEMO_MANUAL_DSN,
+        mdnsContext: this.gatewayDiscoveryContext
       })
       console.info(
         `discoverGateway success source=${result.source} host=${result.host} port=${result.port} version=${result.version}`
       )
       this.gatewayDiscovery = this.toGatewayDiscoverySuccessCard(result)
       this.gatewayDiscovery = this.toGatewayDiscoveryIngestLoadingCard(this.gatewayDiscovery)
+      void this.callbackManager.setGatewayEndpoint(result.endpointUrl).catch((error: Error) => {
+        console.error(
+          `Callback manager register failed: ${error instanceof Error ? error.message : String(error)}`
+        )
+      })
 
       const ingestResult = await this.ingestDiscoveryLog(result)
       console.info(
@@ -211,7 +251,7 @@ class DemoRuntime {
 
   private toSourceCard(source: ExportSourceEntry): DemoSourceCard {
     return {
-      id: `${source.sessionId}-${source.deviceId}`,
+      id: `${source.platform}-${source.appId}-${source.deviceId}`,
       title: `${source.sdkName}@${source.sdkVersion}`,
       detail: `${source.platform} · ${source.appId} · ${source.sessionId}`,
       timestamp: `device ${source.deviceId} · last seen ${source.lastSeenAt}`
