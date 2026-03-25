@@ -15,7 +15,7 @@ const DEFAULT_CALLBACK_LISTEN_PORT = 0
 const DEFAULT_CALLBACK_RENEW_INTERVAL_MS = 30000
 const DEFAULT_CALLBACK_REQUEST_TIMEOUT_MS = 2000
 const DEFAULT_CALLBACK_COMMAND_PATH = '/v2/client/command'
-const DEFAULT_CALLBACK_REGISTER_PATH = '/v2/clients:register'
+const DEFAULT_PREFERRED_TRANSPORT = 'httpCallback'
 
 export class GatewayClientCallbackManager {
   private readonly exportServer: ExportServer
@@ -173,13 +173,10 @@ export class GatewayClientCallbackManager {
       appId: this.appId,
       deviceId: this.deviceId,
       sessionId: this.sessionId ?? undefined,
-      callbackBaseUrl,
-      callbackPath: DEFAULT_CALLBACK_COMMAND_PATH,
-      registerPath: DEFAULT_CALLBACK_REGISTER_PATH,
+      callbackEndpoint: `${callbackBaseUrl}${DEFAULT_CALLBACK_COMMAND_PATH}`,
+      preferredTransports: [DEFAULT_PREFERRED_TRANSPORT],
       sdkName: this.sdkName,
-      sdkVersion: this.sdkVersion,
-      registeredAt: new Date().toISOString(),
-      renewSequence: this.renewSequence
+      sdkVersion: this.sdkVersion
     }
   }
 

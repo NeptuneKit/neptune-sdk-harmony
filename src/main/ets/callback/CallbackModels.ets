@@ -1,18 +1,35 @@
 import { Platform } from '../model/LogModels'
 
-export interface GatewayClientCommandRequest {
+export type BusDirection = 'cli_to_client' | 'client_to_cli'
+export type BusKind = 'command' | 'event' | 'log'
+export type BusAckStatus = 'ok' | 'error'
+
+export interface GatewayBusEvent {
+  name: string
+  attributes?: ESObject
+}
+
+export interface GatewayClientBusEnvelope {
   requestId?: string
+  direction: BusDirection
+  kind: BusKind
   command?: string
-  version?: number | string
-  payload?: ESObject
+  event?: GatewayBusEvent
+  logRecord?: ESObject
+  timestamp?: string
 }
 
 export interface GatewayClientCommandAck {
-  requestId: string
-  command: string
-  status: 'ok' | 'error'
+  requestId?: string
+  command?: string
+  status: BusAckStatus
   message?: string
   timestamp: string
+}
+
+export interface GatewayClientUSBMuxdHint {
+  deviceID: number
+  socketPath?: string
 }
 
 export interface GatewayClientRegistrationPayload {
@@ -20,13 +37,11 @@ export interface GatewayClientRegistrationPayload {
   appId: string
   deviceId: string
   sessionId?: string
-  callbackBaseUrl: string
-  callbackPath: string
-  registerPath: string
+  callbackEndpoint: string
+  preferredTransports: string[]
+  usbmuxdHint?: GatewayClientUSBMuxdHint
   sdkName: string
   sdkVersion: string
-  registeredAt: string
-  renewSequence: number
 }
 
 export interface GatewayClientRegistrationResult {
@@ -49,4 +64,3 @@ export interface GatewayClientCallbackOptions {
   sdkName?: string
   sdkVersion?: string
 }
-

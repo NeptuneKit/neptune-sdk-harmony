@@ -32,9 +32,9 @@ expectContains(exportServerFile, 'status: \'ok\'', 'local command route must ret
 expectContains(exportServerFile, 'status: \'error\'', 'local command route must return error status for unsupported commands')
 expectContains(exportServerFile, 'return [platform, appId, deviceId].join', 'source identity must key on platform + appId + deviceId')
 
-expectContains(callbackModelsFile, 'callbackPath', 'callback payload must include callbackPath')
-expectContains(callbackModelsFile, 'registerPath', 'callback payload must include registerPath')
-expectContains(callbackModelsFile, 'renewSequence', 'callback payload must include renewSequence')
+expectContains(callbackModelsFile, 'callbackEndpoint', 'callback payload must include callbackEndpoint')
+expectContains(callbackModelsFile, 'preferredTransports', 'callback payload must include preferredTransports')
+expectContains(callbackModelsFile, 'GatewayClientBusEnvelope', 'callback model file must define the v2 bus envelope')
 expectContains(callbackModelsFile, 'GatewayClientCommandAck', 'callback model file must define command ACK payloads')
 expectContains(callbackModelsFile, 'requestId', 'callback model file must keep requestId in the command payload')
 
@@ -47,6 +47,6 @@ expectContains(callbackManagerFile, '30000', 'callback manager must renew every 
 expectContains(callbackManagerFile, 'callbackBaseUrl', 'callback manager must compute a callback base URL')
 expectContains(callbackManagerFile, 'setGatewayEndpoint', 'callback manager must react to gateway endpoint changes')
 expectContains(callbackManagerFile, '/v2/client/command', 'callback manager must advertise the command callback path')
-expectContains(callbackManagerFile, '/v2/clients:register', 'callback manager must register through the gateway endpoint')
+expectContains(callbackManagerFile, 'preferredTransports', 'callback manager must send preferredTransports')
 
 console.log('Client callback contract check passed.')

@@ -12,8 +12,8 @@ import {
   LOG_QUEUE_CAPACITY
 } from '../model/LogModels'
 import {
+  GatewayClientBusEnvelope,
   GatewayClientCommandAck,
-  GatewayClientCommandRequest
 } from '../callback/CallbackModels'
 import { LogQueue } from '../core/LogQueue'
 
@@ -320,15 +320,33 @@ export class ExportServer {
       }
     }
 
+    if (commandRequest.direction !== 'cli_to_client') {
+      return {
+        requestId: this.makeRequestId(commandRequest.requestId),
+        command: 'unknown',
+        status: 'error',
+        message: 'unsupported direction',
+        timestamp
+      }
+    }
+    if (commandRequest.kind !== 'command') {
+      return {
+        requestId: this.makeRequestId(commandRequest.requestId),
+        command: 'unknown',
+        status: 'error',
+        message: 'unsupported message kind',
+        timestamp
+      }
+    }
+
     const command = this.normalizeCommand(commandRequest.command)
     const requestId = this.makeRequestId(commandRequest.requestId)
-    const version = this.normalizeCommandVersion(commandRequest.version)
-    if (version !== 1 || command !== 'ping') {
+    if (command !== 'ping') {
       return {
         requestId,
         command,
         status: 'error',
-        message: version !== 1 ? `unsupported command version ${String(version)}` : `unsupported command ${command}`,
+        message: `unsupported command ${command}`,
         timestamp
       }
     }
@@ -342,7 +360,7 @@ export class ExportServer {
     }
   }
 
-  private parseClientCommandRequest(req: HttpRequest): GatewayClientCommandRequest | null {
+  private parseClientCommandRequest(req: HttpRequest): GatewayClientBusEnvelope | null {
     try {
       const rawText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
       if (rawText === undefined || rawText === null) {
@@ -355,9 +373,12 @@ export class ExportServer {
       const payload = parsed as Record<string, string | number | boolean | null | undefined>
       return {
         requestId: this.normalizeTextValue(payload.requestId),
+        direction: this.normalizeDirectionValue(payload.direction),
+        kind: this.normalizeKindValue(payload.kind),
         command: this.normalizeTextValue(payload.command),
-        version: this.normalizeCommandVersionValue(payload.version),
-        payload: undefined
+        event: undefined,
+        logRecord: undefined,
+        timestamp: this.normalizeTextValue(payload.timestamp)
       }
     } catch (_error) {
       return null
@@ -369,35 +390,16 @@ export class ExportServer {
     return normalized === undefined ? 'unknown' : normalized
   }
 
-  private normalizeCommandVersion(value: number | string | boolean | undefined | null): number {
-    if (typeof value === 'number') {
-      return Math.trunc(value)
-    }
-
-    if (typeof value === 'string') {
-      const normalized = value.trim().toLowerCase().replace(/^v/, '')
-      const parsed = Number.parseInt(normalized, 10)
-      return Number.isFinite(parsed) ? parsed : 1
-    }
-
-    return 1
+  private normalizeDirectionValue(value: string | number | boolean | undefined | null): 'cli_to_client' | 'client_to_cli' {
+    return this.normalizeTextValue(value) === 'cli_to_client' ? 'cli_to_client' : 'client_to_cli'
   }
 
-  private normalizeCommandVersionValue(value: string | number | boolean | undefined | null): string | number | undefined {
-    if (value === undefined || value === null) {
-      return undefined
+  private normalizeKindValue(value: string | number | boolean | undefined | null): 'command' | 'event' | 'log' {
+    const normalized = this.normalizeTextValue(value)
+    if (normalized === 'command' || normalized === 'event' || normalized === 'log') {
+      return normalized
     }
-
-    if (typeof value === 'number') {
-      return Math.trunc(value)
-    }
-
-    if (typeof value === 'string') {
-      const normalized = value.trim()
-      return normalized.length > 0 ? normalized : undefined
-    }
-
-    return undefined
+    return 'event'
   }
 
   private makeRequestId(value: string | undefined | null): string {

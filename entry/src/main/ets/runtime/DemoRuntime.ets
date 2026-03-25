@@ -97,8 +97,7 @@ class DemoRuntime {
       sdkVersion: DEMO_VERSION,
       renewIntervalMs: 30000
     })
-    void this.callbackManager
-      .start()
+    void this.callbackManager.start()
       .then(() => this.callbackManager.setGatewayEndpoint(DEMO_MANUAL_ENDPOINT_URL))
       .then((result) => {
         if (result !== null) {
