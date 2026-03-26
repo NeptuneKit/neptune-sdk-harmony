@@ -164,9 +164,9 @@ node ./scripts/verify-gateway-ws-contract.mjs
 - push tag（例如 `v1.2.3` 或 `2026.3.26`）
 - `workflow_dispatch`（支持 `version` 与 `dry_run`）
 
-发布 runner 要求：
-- `self-hosted` 且包含 `harmony` label
-- 已安装 `ohpm` 与 Harmony 构建工具链（可执行 `./hvigorw`）
+发布 runner：
+- 使用 GitHub 托管 runner（`ubuntu-latest`）
+- workflow 会自动下载并安装 Harmony command line tools（`harmonyos-dev/hos-sdk` release 资产）
 
 需要配置 GitHub Secret：
 - `OHPM_PRIVATE_KEY_PEM`（私钥文件内容）
