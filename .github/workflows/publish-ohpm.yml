@@ -21,6 +21,11 @@ on:
         required: false
         default: false
         type: boolean
+      har_asset_url:
+        description: "Optional URL to prebuilt .har file (used when run_harmony_build=false)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -202,6 +207,41 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve HAR artifact
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          resolved_har=""
+          if [[ "${{ inputs.run_harmony_build }}" == "true" ]]; then
+            built_har="$(find "${GITHUB_WORKSPACE}/library/build" -type f -name "*.har" | head -n1 || true)"
+            if [[ -n "${built_har}" ]]; then
+              resolved_har="${built_har}"
+            fi
+          fi
+
+          if [[ -z "${resolved_har}" && -n "${{ inputs.har_asset_url }}" ]]; then
+            mkdir -p "${RUNNER_TEMP}/har"
+            download_har="${RUNNER_TEMP}/har/library.har"
+            curl -fL "${{ inputs.har_asset_url }}" -o "${download_har}"
+            resolved_har="${download_har}"
+          fi
+
+          if [[ -z "${resolved_har}" ]]; then
+            fallback_har="${GITHUB_WORKSPACE}/library/build/default/outputs/default/library.har"
+            if [[ -f "${fallback_har}" ]]; then
+              resolved_har="${fallback_har}"
+            fi
+          fi
+
+          if [[ -z "${resolved_har}" || ! -f "${resolved_har}" ]]; then
+            echo "No .har artifact found. Provide har_asset_url or enable run_harmony_build on a runner with hvigor." >&2
+            exit 1
+          fi
+
+          echo "HAR_FILE_PATH=${resolved_har}" >> "${GITHUB_ENV}"
+
       - name: Configure OHPM publish credentials
         if: ${{ !inputs.dry_run }}
         shell: bash
@@ -234,15 +274,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          default_har="${GITHUB_WORKSPACE}/library/build/default/outputs/default/library.har"
-          har_file="${default_har}"
-          if [[ ! -f "${har_file}" ]]; then
-            found_har="$(find "${GITHUB_WORKSPACE}/library/build" -type f -name "*.har" | head -n1 || true)"
-            if [[ -z "${found_har}" ]]; then
-              echo "No .har artifact found. Enable run_harmony_build on a runner with hvigor available." >&2
-              exit 1
-            fi
-            har_file="${found_har}"
+          har_file="${HAR_FILE_PATH:-}"
+          if [[ -z "${har_file}" || ! -f "${har_file}" ]]; then
+            echo "HAR_FILE_PATH is missing or invalid." >&2
+            exit 1
           fi
           cd library
           ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
