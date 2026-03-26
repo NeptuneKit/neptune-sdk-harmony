@@ -143,6 +143,10 @@ jobs:
             "${HVIGOR_BIN}" --mode module -p module=library assembleHar --no-daemon
           elif [[ -n "${HVIGORW_BIN:-}" && -x "${HVIGORW_BIN}" ]]; then
             "${HVIGORW_BIN}" --mode module -p module=library assembleHar --no-daemon
+          elif command -v hvigor >/dev/null 2>&1; then
+            "$(command -v hvigor)" --mode module -p module=library assembleHar --no-daemon
+          elif command -v hvigorw >/dev/null 2>&1; then
+            "$(command -v hvigorw)" --mode module -p module=library assembleHar --no-daemon
           elif [[ -x "./hvigorw" ]]; then
             ./hvigorw --mode module -p module=library assembleHar --no-daemon
           else

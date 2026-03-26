@@ -19,13 +19,25 @@ if [ -n "${HVIGORW_BIN:-}" ] && [ -x "${HVIGORW_BIN}" ]; then
   exec "${HVIGORW_BIN}" "$@"
 fi
 
+if [ -n "${HVIGOR_BIN:-}" ] && [ -x "${HVIGOR_BIN}" ]; then
+  exec "${HVIGOR_BIN}" "$@"
+fi
+
 if command -v hvigorw >/dev/null 2>&1; then
   exec "$(command -v hvigorw)" "$@"
+fi
+
+if command -v hvigor >/dev/null 2>&1; then
+  exec "$(command -v hvigor)" "$@"
 fi
 
 if [ -x "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" ]; then
   exec "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" "$@"
 fi
 
-echo "hvigorw not found. Install Harmony Command Line Tools or set HVIGORW_BIN." >&2
+if [ -x "${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigor" ]; then
+  exec "${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigor" "$@"
+fi
+
+echo "hvigor/hvigorw not found. Install Harmony Command Line Tools or set HVIGOR_BIN/HVIGORW_BIN." >&2
 exit 127
