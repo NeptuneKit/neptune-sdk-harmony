@@ -156,6 +156,21 @@ node ./scripts/verify-client-callback-contract.mjs
 node ./scripts/verify-gateway-ws-contract.mjs
 ```
 
+## OHPM Publish
+
+仓库已配置发布 workflow：`.github/workflows/publish-ohpm.yml`
+
+触发方式：
+- push tag（例如 `v1.2.3` 或 `2026.3.26`）
+- `workflow_dispatch`（支持 `version` 与 `dry_run`）
+
+发布 runner 要求：
+- `self-hosted` 且包含 `harmony` label
+- 已安装 `ohpm` 与 Harmony 构建工具链（可执行 `./hvigorw`）
+
+需要配置 GitHub Secret：
+- `OHPM_TOKEN`
+
 ## Demo 冒烟
 
 仓库内提供了一个最小 Node demo 冒烟脚本，用于在本地走一遍导出链路并输出摘要：

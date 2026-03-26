@@ -1,0 +1,105 @@
+name: Publish To OHPM
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version (e.g. 1.2.3 or 2026.3.26). Leave empty to use tag name."
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: "Build only, skip ohpm publish"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on:
+      - self-hosted
+      - harmony
+
+    env:
+      OHPM_REGISTRY: https://ohpm.openharmony.cn/ohpm/
+
+    steps:
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version_input="${{ inputs.version }}"
+          version_name="${version_input}"
+
+          if [[ -z "${version_name}" ]]; then
+            if [[ "${GITHUB_REF_TYPE:-}" != "tag" ]]; then
+              echo "workflow_dispatch from branch requires inputs.version" >&2
+              exit 1
+            fi
+            version_name="${GITHUB_REF_NAME}"
+          fi
+
+          version_name="${version_name#v}"
+
+          if [[ ! "${version_name}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ ]] && [[ ! "${version_name}" =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}(\.[0-9]+)?$ ]]; then
+            echo "invalid version: ${version_name}" >&2
+            exit 1
+          fi
+
+          printf 'version_name=%s\n' "${version_name}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update Harmony package version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version_name="${{ steps.version.outputs.version_name }}"
+          sed -i.bak -E "s/(\"version\"\s*:\s*\")[^\"]+(\")/\1${version_name}\2/" library/oh-package.json5
+          sed -i.bak -E "s/(HAR_VERSION = ')[^']+(';)/\1${version_name}\2/" library/BuildProfile.ets
+          rm -f library/oh-package.json5.bak library/BuildProfile.ets.bak
+
+      - name: Install dependencies
+        shell: bash
+        run: ohpm install --all
+
+      - name: Build HAR
+        shell: bash
+        run: ./hvigorw --mode module -p module=library assembleHar --no-daemon
+
+      - name: Configure OHPM auth token
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          OHPM_TOKEN: ${{ secrets.OHPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${OHPM_TOKEN}" ]]; then
+            echo "OHPM_TOKEN is required for publish." >&2
+            exit 1
+          fi
+
+          mkdir -p "${HOME}"
+          {
+            echo "registry=${OHPM_REGISTRY}"
+            echo "//ohpm.openharmony.cn/ohpm/:_authToken=${OHPM_TOKEN}"
+          } >> "${HOME}/.ohpmrc"
+
+      - name: Publish HAR to OHPM
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd library
+          ohpm publish --registry "${OHPM_REGISTRY}"
