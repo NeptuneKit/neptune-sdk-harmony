@@ -51,8 +51,8 @@ export interface DemoSnapshot {
 
 const DEMO_SERVICE_NAME = 'neptune-sdk-harmony-demo'
 const DEMO_VERSION = '0.1.0'
-const DEMO_MANUAL_DSN = '10.0.2.2:18765'
-const DEMO_MANUAL_ENDPOINT_URL = 'http://10.0.2.2:18765'
+const DEMO_MANUAL_DSN = '127.0.0.1:18765'
+const DEMO_MANUAL_ENDPOINT_URL = 'http://127.0.0.1:18765'
 const DEMO_CALLBACK_LISTEN_PORT = 28767
 const DEMO_PLATFORM: Platform = 'harmony'
 const DEMO_APP_ID = 'io.github.neptune.sdk.harmony.demo'
@@ -107,6 +107,8 @@ class DemoRuntime {
       .catch((error: Error) => {
         console.error(`Callback manager start failed: ${error instanceof Error ? error.message : String(error)}`)
       })
+    // Seed one initial batch so gateway /v2/logs can immediately pull Harmony records after registration.
+    this.seedBatch()
   }
 
   setGatewayDiscoveryContext(context: Object | undefined | null): void {

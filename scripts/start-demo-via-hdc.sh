@@ -7,6 +7,7 @@ repo_root=$(CDPATH= cd -- "${script_dir}/.." && pwd)
 bundle_name=io.github.neptune.sdk.harmony
 ability_name=EntryAbility
 callback_port=${HDC_CALLBACK_PORT:-28767}
+gateway_port=${HDC_GATEWAY_PORT:-18765}
 target=${HDC_TARGET:-}
 hap_path=${HDC_HAP_PATH:-}
 keep_awake_ms=${HDC_KEEP_AWAKE_MS:-600000}
@@ -274,6 +275,10 @@ log "HAP: $hap_path"
 log "Preparing host->device fport tcp:${callback_port} -> tcp:${callback_port}..."
 if ! hdc_exec fport "tcp:${callback_port}" "tcp:${callback_port}" >/dev/null 2>&1; then
   log "fport setup skipped (it may already exist): tcp:${callback_port}"
+fi
+log "Preparing device->host rport tcp:${gateway_port} -> tcp:${gateway_port}..."
+if ! hdc_exec rport "tcp:${gateway_port}" "tcp:${gateway_port}" >/dev/null 2>&1; then
+  log "rport setup skipped (it may already exist): tcp:${gateway_port}"
 fi
 
 attempt_unlock
