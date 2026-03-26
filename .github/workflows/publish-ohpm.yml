@@ -285,7 +285,11 @@ jobs:
           key_path="${HOME}/.ohpm/publish_key.pem"
           cd library
           if [[ -n "${OHPM_KEY_PASSPHRASE:-}" ]]; then
-            printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}"
+            if command -v script >/dev/null 2>&1; then
+              printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | script -q -e -c "ohpm publish \"${har_file}\" --publish_registry \"${OHPM_REGISTRY}\"" /dev/null
+            else
+              printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}"
+            fi
           else
             ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}"
           fi
