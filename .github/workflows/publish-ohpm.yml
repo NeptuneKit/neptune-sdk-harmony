@@ -272,6 +272,8 @@ jobs:
       - name: Publish HAR to OHPM
         if: ${{ !inputs.dry_run }}
         shell: bash
+        env:
+          OHPM_KEY_PASSPHRASE: ${{ secrets.OHPM_KEY_PASSPHRASE }}
         run: |
           set -euo pipefail
           har_file="${HAR_FILE_PATH:-}"
@@ -280,4 +282,8 @@ jobs:
             exit 1
           fi
           cd library
-          ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
+          if [[ -n "${OHPM_KEY_PASSPHRASE:-}" ]]; then
+            printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
+          else
+            ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
+          fi
