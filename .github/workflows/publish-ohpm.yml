@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_harmony_build:
+        description: "Run hvigor HAR build before publish (requires hvigor in runner)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -150,6 +155,7 @@ jobs:
           ohpm install
 
       - name: Build HAR
+        if: ${{ inputs.run_harmony_build }}
         shell: bash
         run: |
           set -euo pipefail
