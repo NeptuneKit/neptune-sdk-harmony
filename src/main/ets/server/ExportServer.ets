@@ -8,7 +8,6 @@ import {
   IngestLogRecord,
   LogQueryOptions,
   LogRecord,
-  LOG_QUEUE_BATCH_SIZE,
   LOG_QUEUE_CAPACITY
 } from '../model/LogModels'
 import {
@@ -132,14 +131,12 @@ export class ExportServer {
   }
 
   queryLogs(query: LogQueryOptions = {}): ExportCursorPage<LogRecord> {
-    const limit = this.normalizeLimit(query.limit)
+    const length = this.normalizeLength(query.length)
     const predicate = this.makeLogFilter(query)
-    const records = this.queue.peekAfter(query.cursor, limit, predicate)
-    const nextCursor = records.length > 0 ? String(records[records.length - 1].id) : (query.cursor ?? '')
+    const records = this.queue.peekAfter(query.cursor, length, predicate)
     return {
       records,
-      nextCursor,
-      hasMore: this.queue.hasMoreAfter(query.cursor, limit, predicate)
+      hasMore: this.queue.hasMoreAfter(query.cursor, length, predicate)
     }
   }
 
@@ -168,26 +165,26 @@ export class ExportServer {
 
   private parseQuery(req: HttpRequest): LogQueryOptions {
     const cursor = req.query.get('cursor') ?? undefined
-    const limitValue = req.query.get('limit')
-    const parsedLimit = limitValue !== undefined ? Number.parseInt(limitValue, 10) : undefined
+    const lengthValue = req.query.get('length')
+    const parsedLength = lengthValue !== undefined ? Number.parseInt(lengthValue, 10) : undefined
 
     return {
       cursor,
-      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      length: Number.isFinite(parsedLength) ? parsedLength : undefined,
       platform: this.normalizeQueryField(req.query.get('platform')),
       appId: this.normalizeQueryField(req.query.get('appId')),
       sessionId: this.normalizeQueryField(req.query.get('sessionId'))
     }
   }
 
-  private normalizeLimit(limit?: number): number {
-    if (limit === undefined || limit === null) {
-      return LOG_QUEUE_BATCH_SIZE
+  private normalizeLength(length?: number): number {
+    if (length === undefined || length === null) {
+      return LOG_QUEUE_CAPACITY
     }
-    if (limit <= 0) {
-      return 1
+    if (length <= 0) {
+      return LOG_QUEUE_CAPACITY
     }
-    return Math.min(limit, LOG_QUEUE_CAPACITY)
+    return Math.min(length, LOG_QUEUE_CAPACITY)
   }
 
   private makeLogFilter(query: LogQueryOptions): ((record: LogRecord) => boolean) | undefined {

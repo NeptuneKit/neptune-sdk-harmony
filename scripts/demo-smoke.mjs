@@ -115,16 +115,16 @@ function createReferenceExportServer(options = {}) {
     return stored
   }
 
-  function normalizeLimit(limit) {
-    if (limit === undefined || limit === null) {
-      return 50
+  function normalizeLength(length) {
+    if (length === undefined || length === null) {
+      return 2000
     }
 
-    if (limit <= 0) {
-      return 1
+    if (length <= 0) {
+      return 2000
     }
 
-    return Math.min(limit, 2000)
+    return Math.min(length, 2000)
   }
 
   function normalizeQueryField(value) {
@@ -142,7 +142,7 @@ function createReferenceExportServer(options = {}) {
   function queryLogs(query = {}) {
     const cursor = typeof query.cursor === 'string' ? query.cursor : undefined
     const cursorId = cursor && cursor.trim().length > 0 ? Number(cursor) : Number.NaN
-    const limit = normalizeLimit(query.limit)
+    const length = normalizeLength(query.length)
     const platform = normalizeQueryField(query.platform)
     const appId = normalizeQueryField(query.appId)
     const sessionId = normalizeQueryField(query.sessionId)
@@ -157,11 +157,10 @@ function createReferenceExportServer(options = {}) {
         matchesQueryField(record.sessionId, sessionId)
     })
 
-    const page = filtered.slice(0, limit)
+    const page = filtered.slice(0, length)
     return {
       records: page,
-      nextCursor: page.length > 0 ? String(page[page.length - 1].id) : (cursor ?? ''),
-      hasMore: filtered.length > limit
+      hasMore: filtered.length > length
     }
   }
 
@@ -206,12 +205,12 @@ function createReferenceExportServer(options = {}) {
       }
 
       if (req.method === 'GET' && requestUrl.pathname === '/v2/logs') {
-        const limitValue = requestUrl.searchParams.get('limit')
-        const parsedLimit = limitValue !== null ? Number.parseInt(limitValue, 10) : undefined
+        const lengthValue = requestUrl.searchParams.get('length')
+        const parsedLength = lengthValue !== null ? Number.parseInt(lengthValue, 10) : undefined
         res.statusCode = 200
         res.end(JSON.stringify(queryLogs({
           cursor: requestUrl.searchParams.get('cursor') ?? undefined,
-          limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+          length: Number.isFinite(parsedLength) ? parsedLength : undefined,
           platform: requestUrl.searchParams.get('platform') ?? undefined,
           appId: requestUrl.searchParams.get('appId') ?? undefined,
           sessionId: requestUrl.searchParams.get('sessionId') ?? undefined
@@ -330,7 +329,7 @@ async function main() {
 
     const health = await requestJson(baseUrl, '/v2/export/health')
     const metrics = await requestJson(baseUrl, '/v2/export/metrics')
-    const logs = await requestJson(baseUrl, '/v2/logs?platform=harmony&appId=com.neptune.demo.harmony&sessionId=smoke-session&limit=2')
+    const logs = await requestJson(baseUrl, '/v2/logs?platform=harmony&appId=com.neptune.demo.harmony&sessionId=smoke-session&length=2')
     const sources = await requestJson(baseUrl, '/v2/export/sources')
 
     assert.equal(health.status, 'ok')
@@ -339,7 +338,6 @@ async function main() {
     assert.equal(metrics.totalIngested, 3)
     assert.equal(metrics.totalExported, 0)
     assert.equal(logs.records.length, 2)
-    assert.equal(logs.nextCursor, '2')
     assert.equal(logs.hasMore, false)
     assert.equal(sources.length, 2)
     assert.equal(sources[0].sdkName, 'neptune-sdk-harmony')
@@ -353,7 +351,6 @@ async function main() {
       totalIngested: metrics.totalIngested,
       totalExported: metrics.totalExported,
       filteredLogCount: logs.records.length,
-      nextCursor: logs.nextCursor,
       sourceCount: sources.length,
       primarySource: sources[0].sdkName,
       siblingSource: sources[1].sdkName

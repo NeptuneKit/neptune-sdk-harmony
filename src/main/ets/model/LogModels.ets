@@ -30,7 +30,6 @@ export interface LogRecord extends IngestLogRecord {
 
 export interface ExportCursorPage<T> {
   records: T[]
-  nextCursor: string
   hasMore: boolean
 }
 
@@ -61,7 +60,7 @@ export interface ExportSourceEntry {
 
 export interface LogQueryOptions {
   cursor?: string
-  limit?: number
+  length?: number
   platform?: string
   appId?: string
   sessionId?: string

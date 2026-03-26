@@ -10,14 +10,14 @@ function normalizeQueryField(value) {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-function normalizeLimit(limit, batchSize = 50) {
-  if (limit === undefined || limit === null) {
-    return batchSize
+function normalizeLength(length, maxSize = 2000) {
+  if (length === undefined || length === null) {
+    return maxSize
   }
-  if (limit <= 0) {
-    return 1
+  if (length <= 0) {
+    return maxSize
   }
-  return Math.min(limit, batchSize)
+  return Math.min(length, maxSize)
 }
 
 function matchesField(actual, expected) {
@@ -30,7 +30,7 @@ function matchesField(actual, expected) {
 function queryLogs(records, query = {}, batchSize = 50) {
   const cursor = typeof query.cursor === 'string' ? query.cursor : undefined
   const cursorId = cursor && cursor.trim().length > 0 ? Number(cursor) : Number.NaN
-  const limit = normalizeLimit(query.limit, batchSize)
+  const length = normalizeLength(query.length, batchSize)
   const platform = normalizeQueryField(query.platform)
   const appId = normalizeQueryField(query.appId)
   const sessionId = normalizeQueryField(query.sessionId)
@@ -44,11 +44,10 @@ function queryLogs(records, query = {}, batchSize = 50) {
       matchesField(record.sessionId, sessionId)
   })
 
-  const page = filtered.slice(0, limit)
+  const page = filtered.slice(0, length)
   return {
     records: page,
-    nextCursor: page.length > 0 ? String(page[page.length - 1].id) : (cursor ?? ''),
-    hasMore: filtered.length > limit
+    hasMore: filtered.length > length
   }
 }
 
@@ -61,37 +60,33 @@ const records = [
 ]
 
 assert.deepEqual(
-  queryLogs(records, { limit: 2 }),
+  queryLogs(records, { length: 2 }),
   {
     records: records.slice(0, 2),
-    nextCursor: '2',
     hasMore: true
   }
 )
 
 assert.deepEqual(
-  queryLogs(records, { platform: 'harmony', limit: 2 }),
+  queryLogs(records, { platform: 'harmony', length: 2 }),
   {
     records: [records[1], records[2]],
-    nextCursor: '3',
     hasMore: true
   }
 )
 
 assert.deepEqual(
-  queryLogs(records, { cursor: '2', appId: 'demo.app', sessionId: 'session-b', limit: 2 }),
+  queryLogs(records, { cursor: '2', appId: 'demo.app', sessionId: 'session-b', length: 2 }),
   {
     records: [records[2], records[4]],
-    nextCursor: '5',
     hasMore: false
   }
 )
 
 assert.deepEqual(
-  queryLogs(records, { platform: '   ', appId: '', sessionId: undefined, limit: 3 }),
+  queryLogs(records, { platform: '   ', appId: '', sessionId: undefined, length: 3 }),
   {
     records: records.slice(0, 3),
-    nextCursor: '3',
     hasMore: true
   }
 )
