@@ -153,6 +153,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          discovered_bin=""
+          while IFS= read -r candidate; do
+            if [[ -x "${candidate}" ]]; then
+              discovered_bin="${candidate}"
+              break
+            fi
+          done < <(find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 8 \( -name "hvigor" -o -name "hvigorw" \) 2>/dev/null | sort -u)
+
           if [[ -n "${HVIGOR_BIN:-}" && -x "${HVIGOR_BIN}" ]]; then
             "${HVIGOR_BIN}" --mode module -p module=library assembleHar --no-daemon
           elif [[ -n "${HVIGORW_BIN:-}" && -x "${HVIGORW_BIN}" ]]; then
@@ -161,12 +169,14 @@ jobs:
             "$(command -v hvigor)" --mode module -p module=library assembleHar --no-daemon
           elif command -v hvigorw >/dev/null 2>&1; then
             "$(command -v hvigorw)" --mode module -p module=library assembleHar --no-daemon
+          elif [[ -n "${discovered_bin}" ]]; then
+            "${discovered_bin}" --mode module -p module=library assembleHar --no-daemon
           elif [[ -x "./hvigorw" ]]; then
             ./hvigorw --mode module -p module=library assembleHar --no-daemon
           else
             echo "Cannot find hvigor executable for build." >&2
-            echo "HOS tool tree:" >&2
-            find "${HOME}/harmonyOS-command-line-tools" -maxdepth 4 -type f \( -name "hvigor" -o -name "hvigorw" \) -print >&2 || true
+            echo "Scanned hvigor candidates:" >&2
+            find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 8 \( -name "hvigor" -o -name "hvigorw" \) -print >&2 2>/dev/null || true
             exit 1
           fi
 
