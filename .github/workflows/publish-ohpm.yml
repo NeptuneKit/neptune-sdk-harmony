@@ -164,12 +164,16 @@ jobs:
           fi
 
           discovered_bin=""
+          discovered_node_script=""
           while IFS= read -r candidate; do
+            if [[ "${candidate}" == *"/hvigor.js" && -f "${candidate}" ]]; then
+              discovered_node_script="${candidate}"
+            fi
             if [[ -f "${candidate}" && -x "${candidate}" ]]; then
               discovered_bin="${candidate}"
               break
             fi
-          done < <(find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 8 \( -name "hvigor" -o -name "hvigorw" \) 2>/dev/null | sort -u)
+          done < <(find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 10 \( -name "hvigor" -o -name "hvigorw" -o -name "hvigor.js" \) 2>/dev/null | sort -u)
 
           if [[ -n "${HVIGOR_BIN:-}" && -x "${HVIGOR_BIN}" ]]; then
             "${HVIGOR_BIN}" --mode module -p module=library assembleHar --no-daemon
@@ -181,12 +185,14 @@ jobs:
             "$(command -v hvigorw)" --mode module -p module=library assembleHar --no-daemon
           elif [[ -n "${discovered_bin}" ]]; then
             "${discovered_bin}" --mode module -p module=library assembleHar --no-daemon
+          elif [[ -n "${discovered_node_script}" ]]; then
+            node "${discovered_node_script}" --mode module -p module=library assembleHar --no-daemon
           elif [[ -x "./hvigorw" ]]; then
             ./hvigorw --mode module -p module=library assembleHar --no-daemon
           else
             echo "Cannot find hvigor executable for build." >&2
             echo "Scanned hvigor candidates:" >&2
-            find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 8 \( -name "hvigor" -o -name "hvigorw" \) -print >&2 2>/dev/null || true
+            find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 10 \( -name "hvigor" -o -name "hvigorw" -o -name "hvigor.js" \) -print >&2 2>/dev/null || true
             exit 1
           fi
 
