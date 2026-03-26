@@ -155,7 +155,7 @@ jobs:
           set -euo pipefail
           discovered_bin=""
           while IFS= read -r candidate; do
-            if [[ -x "${candidate}" ]]; then
+            if [[ -f "${candidate}" && -x "${candidate}" ]]; then
               discovered_bin="${candidate}"
               break
             fi
