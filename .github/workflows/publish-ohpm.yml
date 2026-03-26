@@ -91,14 +91,16 @@ jobs:
 
           chmod +x "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" 2>/dev/null || true
           chmod +x "${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigorw" 2>/dev/null || true
+          chmod +x "${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigor" 2>/dev/null || true
 
           hvigorw_bin="$(find "${HOME}/harmonyOS-command-line-tools" -type f -name hvigorw | head -n1 || true)"
-          if [[ -z "${hvigorw_bin}" ]]; then
-            echo "Cannot find hvigorw in Harmony command line tools." >&2
-            exit 1
+          hvigor_bin="$(find "${HOME}/harmonyOS-command-line-tools" -type f -name hvigor | head -n1 || true)"
+          if [[ -n "${hvigorw_bin}" ]]; then
+            echo "HVIGORW_BIN=${hvigorw_bin}" >> "${GITHUB_ENV}"
           fi
-          chmod +x "${hvigorw_bin}" 2>/dev/null || true
-          echo "HVIGORW_BIN=${hvigorw_bin}" >> "${GITHUB_ENV}"
+          if [[ -n "${hvigor_bin}" ]]; then
+            echo "HVIGOR_BIN=${hvigor_bin}" >> "${GITHUB_ENV}"
+          fi
 
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
           chmod +x "${HOME}/harmonyOS-command-line-tools/sdkmanager/bin/sdkmgr"
@@ -133,7 +135,13 @@ jobs:
 
       - name: Build HAR
         shell: bash
-        run: ./hvigorw --mode module -p module=library assembleHar --no-daemon
+        run: |
+          set -euo pipefail
+          if [[ -n "${HVIGOR_BIN:-}" && -x "${HVIGOR_BIN}" ]]; then
+            "${HVIGOR_BIN}" --mode module -p module=library assembleHar --no-daemon
+          else
+            ./hvigorw --mode module -p module=library assembleHar --no-daemon
+          fi
 
       - name: Configure OHPM publish credentials
         if: ${{ !inputs.dry_run }}
