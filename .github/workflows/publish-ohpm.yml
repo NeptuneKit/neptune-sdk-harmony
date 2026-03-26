@@ -274,6 +274,7 @@ jobs:
         shell: bash
         env:
           OHPM_KEY_PASSPHRASE: ${{ secrets.OHPM_KEY_PASSPHRASE }}
+          OHPM_PUBLISH_ID: ${{ secrets.OHPM_PUBLISH_ID }}
         run: |
           set -euo pipefail
           har_file="${HAR_FILE_PATH:-}"
@@ -281,9 +282,10 @@ jobs:
             echo "HAR_FILE_PATH is missing or invalid." >&2
             exit 1
           fi
+          key_path="${HOME}/.ohpm/publish_key.pem"
           cd library
           if [[ -n "${OHPM_KEY_PASSPHRASE:-}" ]]; then
-            printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
+            printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}" --publish_id "${OHPM_PUBLISH_ID}" --key_path "${key_path}"
           else
-            ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
+            ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}" --publish_id "${OHPM_PUBLISH_ID}" --key_path "${key_path}"
           fi
