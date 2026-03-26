@@ -77,24 +77,32 @@ jobs:
         shell: bash
         run: ./hvigorw --mode module -p module=library assembleHar --no-daemon
 
-      - name: Configure OHPM auth token
+      - name: Configure OHPM publish credentials
         if: ${{ !inputs.dry_run }}
         shell: bash
         env:
-          OHPM_TOKEN: ${{ secrets.OHPM_TOKEN }}
+          OHPM_PRIVATE_KEY_PEM: ${{ secrets.OHPM_PRIVATE_KEY_PEM }}
+          OHPM_PUBLISH_ID: ${{ secrets.OHPM_PUBLISH_ID }}
         run: |
           set -euo pipefail
 
-          if [[ -z "${OHPM_TOKEN}" ]]; then
-            echo "OHPM_TOKEN is required for publish." >&2
+          if [[ -z "${OHPM_PRIVATE_KEY_PEM}" ]]; then
+            echo "OHPM_PRIVATE_KEY_PEM is required for publish." >&2
+            exit 1
+          fi
+          if [[ -z "${OHPM_PUBLISH_ID}" ]]; then
+            echo "OHPM_PUBLISH_ID is required for publish." >&2
             exit 1
           fi
 
-          mkdir -p "${HOME}"
-          {
-            echo "registry=${OHPM_REGISTRY}"
-            echo "//ohpm.openharmony.cn/ohpm/:_authToken=${OHPM_TOKEN}"
-          } >> "${HOME}/.ohpmrc"
+          mkdir -p "${HOME}/.ohpm"
+          key_path="${HOME}/.ohpm/publish_key.pem"
+          printf '%s\n' "${OHPM_PRIVATE_KEY_PEM}" > "${key_path}"
+          chmod 600 "${key_path}"
+
+          ohpm config set key_path "${key_path}"
+          ohpm config set publish_id "${OHPM_PUBLISH_ID}"
+          ohpm config set registry "${OHPM_REGISTRY}"
 
       - name: Publish HAR to OHPM
         if: ${{ !inputs.dry_run }}

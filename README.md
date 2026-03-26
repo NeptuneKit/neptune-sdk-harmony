@@ -169,7 +169,8 @@ node ./scripts/verify-gateway-ws-contract.mjs
 - 已安装 `ohpm` 与 Harmony 构建工具链（可执行 `./hvigorw`）
 
 需要配置 GitHub Secret：
-- `OHPM_TOKEN`
+- `OHPM_PRIVATE_KEY_PEM`（私钥文件内容）
+- `OHPM_PUBLISH_ID`
 
 ## Demo 冒烟
 
