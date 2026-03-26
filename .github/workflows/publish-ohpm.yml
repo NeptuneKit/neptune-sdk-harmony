@@ -118,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
           ohpm config set registry "${OHPM_REGISTRY}" || true
-          ohpm install --all
+          ohpm install
 
       - name: Build HAR
         shell: bash
