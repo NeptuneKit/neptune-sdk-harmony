@@ -120,8 +120,16 @@ jobs:
             "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init" || true
           fi
 
+          node_hvigorw="${HOME}/harmonyOS-command-line-tools/node_modules/.bin/hvigorw"
+          node_hvigor="${HOME}/harmonyOS-command-line-tools/node_modules/.bin/hvigor"
+          if [[ -x "${node_hvigorw}" ]]; then
+            echo "HVIGORW_BIN=${node_hvigorw}" >> "${GITHUB_ENV}"
+          fi
+          if [[ -x "${node_hvigor}" ]]; then
+            echo "HVIGOR_BIN=${node_hvigor}" >> "${GITHUB_ENV}"
+          fi
           if [[ -d "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" ]]; then
-            echo "Node bin tools:"
+            echo "Node bin tools (post-init):"
             ls -la "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" || true
           fi
 
