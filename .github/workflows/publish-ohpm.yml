@@ -234,5 +234,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          default_har="${GITHUB_WORKSPACE}/library/build/default/outputs/default/library.har"
+          har_file="${default_har}"
+          if [[ ! -f "${har_file}" ]]; then
+            found_har="$(find "${GITHUB_WORKSPACE}/library/build" -type f -name "*.har" | head -n1 || true)"
+            if [[ -z "${found_har}" ]]; then
+              echo "No .har artifact found. Enable run_harmony_build on a runner with hvigor available." >&2
+              exit 1
+            fi
+            har_file="${found_har}"
+          fi
           cd library
-          ohpm publish --registry "${OHPM_REGISTRY}"
+          ohpm publish "${har_file}" --registry "${OHPM_REGISTRY}"
