@@ -205,7 +205,7 @@ function createReferenceExportServer(options = {}) {
         return
       }
 
-      if (req.method === 'GET' && requestUrl.pathname === '/v2/export/logs') {
+      if (req.method === 'GET' && requestUrl.pathname === '/v2/logs') {
         const limitValue = requestUrl.searchParams.get('limit')
         const parsedLimit = limitValue !== null ? Number.parseInt(limitValue, 10) : undefined
         res.statusCode = 200
@@ -330,7 +330,7 @@ async function main() {
 
     const health = await requestJson(baseUrl, '/v2/export/health')
     const metrics = await requestJson(baseUrl, '/v2/export/metrics')
-    const logs = await requestJson(baseUrl, '/v2/export/logs?platform=harmony&appId=com.neptune.demo.harmony&sessionId=smoke-session&limit=2')
+    const logs = await requestJson(baseUrl, '/v2/logs?platform=harmony&appId=com.neptune.demo.harmony&sessionId=smoke-session&limit=2')
     const sources = await requestJson(baseUrl, '/v2/export/sources')
 
     assert.equal(health.status, 'ok')

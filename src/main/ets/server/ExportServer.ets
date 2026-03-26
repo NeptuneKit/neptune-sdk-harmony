@@ -152,7 +152,7 @@ export class ExportServer {
       res.status(200).json(this.metrics() as ESObject)
     })
 
-    server.get('/v2/export/logs', (req: HttpRequest, res: HttpResponse) => {
+    server.get('/v2/logs', (req: HttpRequest, res: HttpResponse) => {
       const query = this.parseQuery(req)
       res.status(200).json(this.queryLogs(query) as ESObject)
     })
