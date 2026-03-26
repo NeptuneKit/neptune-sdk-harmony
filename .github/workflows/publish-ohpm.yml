@@ -93,6 +93,14 @@ jobs:
           chmod +x "${HOME}/harmonyOS-command-line-tools/sdkmanager/bin/sdkmgr"
           "${HOME}/harmonyOS-command-line-tools/sdkmanager/bin/sdkmgr" install toolchains:9 OpenHarmony/toolchains:9 --accept-license
 
+          # Some command line tool bundles require explicit init script execution before ohpm can run.
+          if [[ -x "${HOME}/harmonyOS-command-line-tools/bin/init.sh" ]]; then
+            bash "${HOME}/harmonyOS-command-line-tools/bin/init.sh" || true
+          fi
+          if [[ -x "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" ]]; then
+            bash "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" || true
+          fi
+
       - name: Update Harmony package version
         shell: bash
         run: |
@@ -104,7 +112,10 @@ jobs:
 
       - name: Install dependencies
         shell: bash
-        run: ohpm install --all
+        run: |
+          set -euo pipefail
+          ohpm config set registry "${OHPM_REGISTRY}" || true
+          ohpm install --all
 
       - name: Build HAR
         shell: bash
