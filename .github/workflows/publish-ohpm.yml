@@ -86,7 +86,8 @@ jobs:
           cp -R command-line-tools/* "${HOME}/harmonyOS-command-line-tools/"
 
           echo "${HOME}/harmonyOS-command-line-tools/bin" >> "${GITHUB_PATH}"
-          echo "HVIGORW_BIN=${HOME}/harmonyOS-command-line-tools/bin/hvigorw" >> "${GITHUB_ENV}"
+          echo "${HOME}/harmonyOS-command-line-tools/hvigor/bin" >> "${GITHUB_PATH}"
+          echo "HVIGORW_BIN=${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigorw" >> "${GITHUB_ENV}"
           echo "HOS_SDK_HOME=${GITHUB_WORKSPACE}/hwsdk" >> "${GITHUB_ENV}"
 
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
