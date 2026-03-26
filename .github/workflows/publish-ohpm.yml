@@ -101,6 +101,8 @@ jobs:
           if [[ -n "${hvigor_bin}" ]]; then
             echo "HVIGOR_BIN=${hvigor_bin}" >> "${GITHUB_ENV}"
           fi
+          echo "Resolved HVIGORW_BIN=${hvigorw_bin:-<none>}"
+          echo "Resolved HVIGOR_BIN=${hvigor_bin:-<none>}"
 
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
           chmod +x "${HOME}/harmonyOS-command-line-tools/sdkmanager/bin/sdkmgr"
@@ -139,8 +141,15 @@ jobs:
           set -euo pipefail
           if [[ -n "${HVIGOR_BIN:-}" && -x "${HVIGOR_BIN}" ]]; then
             "${HVIGOR_BIN}" --mode module -p module=library assembleHar --no-daemon
-          else
+          elif [[ -n "${HVIGORW_BIN:-}" && -x "${HVIGORW_BIN}" ]]; then
+            "${HVIGORW_BIN}" --mode module -p module=library assembleHar --no-daemon
+          elif [[ -x "./hvigorw" ]]; then
             ./hvigorw --mode module -p module=library assembleHar --no-daemon
+          else
+            echo "Cannot find hvigor executable for build." >&2
+            echo "HOS tool tree:" >&2
+            find "${HOME}/harmonyOS-command-line-tools" -maxdepth 4 -type f \( -name "hvigor" -o -name "hvigorw" \) -print >&2 || true
+            exit 1
           fi
 
       - name: Configure OHPM publish credentials
