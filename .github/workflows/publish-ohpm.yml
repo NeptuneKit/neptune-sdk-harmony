@@ -100,8 +100,7 @@ jobs:
 
           version_name="${{ steps.version.outputs.version_name }}"
           sed -i.bak -E "s/(\"version\"\s*:\s*\")[^\"]+(\")/\1${version_name}\2/" library/oh-package.json5
-          sed -i.bak -E "s/(HAR_VERSION = ')[^']+(';)/\1${version_name}\2/" library/BuildProfile.ets
-          rm -f library/oh-package.json5.bak library/BuildProfile.ets.bak
+          rm -f library/oh-package.json5.bak
 
       - name: Install dependencies
         shell: bash
