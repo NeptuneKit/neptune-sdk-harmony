@@ -153,6 +153,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -x "${HOME}/harmonyOS-command-line-tools/bin/init.sh" ]]; then
+            # init.sh exports Harmony tool paths for current shell.
+            # shellcheck disable=SC1091
+            source "${HOME}/harmonyOS-command-line-tools/bin/init.sh" || true
+          fi
+          if [[ -x "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" ]]; then
+            # shellcheck disable=SC1091
+            source "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" || true
+          fi
+
           discovered_bin=""
           while IFS= read -r candidate; do
             if [[ -f "${candidate}" && -x "${candidate}" ]]; then
