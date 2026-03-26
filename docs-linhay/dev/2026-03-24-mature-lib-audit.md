@@ -27,7 +27,7 @@
 - `HttpServer`、`HttpRequest`、`HttpResponse` 均来自 `@cxy/webserver`
 - 路由仅包含 `GET /v2/export/health`
 - 路由仅包含 `GET /v2/export/metrics`
-- 路由仅包含 `GET /v2/export/logs`
+- 路由仅包含 `GET /v2/logs`
 - 路由仅包含 `GET /v2/export/sources`
 
 项目侧没有自己实现 socket accept、请求解析、header/body 编码或状态行拼装。

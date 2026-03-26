@@ -14,7 +14,7 @@ NeptuneKit v2 Harmony SDK，当前阶段已接入 `@cxy/webserver`，并提供�
 - 已注册导出路由：
   - `GET /v2/export/health`
   - `GET /v2/export/metrics`
-  - `GET /v2/export/logs?cursor&limit&platform&appId&sessionId`
+  - `GET /v2/logs?cursor&limit&platform&appId&sessionId`
   - `GET /v2/export/sources`
 - `entry/` Stage HAP Demo App，按钮触发 Neptune SDK 写入日志并展示 metrics / sources 摘要
 
@@ -166,7 +166,7 @@ node ./scripts/demo-smoke.mjs
 
 脚本会：
 
-- 启动一个本地参考导出服务，暴露 `/v2/export/health`、`/v2/export/metrics`、`/v2/export/logs`、`/v2/export/sources`
+- 启动一个本地参考导出服务，暴露 `/v2/export/health`、`/v2/export/metrics`、`/v2/logs`、`/v2/export/sources`
 - 注入 3 条 demo 日志，其中 2 条会命中同一个 Harmony 来源快照
 - 拉取导出结果并断言关键字段
 - 输出一个简短摘要，便于快速确认接入链路是否正常
@@ -217,6 +217,8 @@ node ./scripts/demo-smoke.mjs
 - 自动检测已连接的 hdc target，或使用 `--target` / `HDC_TARGET`
 - 自动寻找 `entry/build/default/outputs/default/entry-default-unsigned.hap`
 - 如果 HAP 不存在，默认先执行 `./scripts/build-demo-entry.sh`
+- 自动配置 `fport tcp:28767 -> tcp:28767`（callback 回调）
+- 自动配置 `rport tcp:18765 -> tcp:18765`（设备访问本机 gateway）
 - 在启动前尽力执行 `power-shell timeout -o`、`power-shell wakeup` 和 `uinput swipe`
 - 安装 HAP 后执行 `aa start -b io.github.neptune.sdk.harmony -a EntryAbility -W`
 - 最后用 `aa dump -l EntryAbility` 复核是否已进入前台
@@ -293,7 +295,7 @@ import { createGatewayDiscoveryResolver } from 'neptune-sdk-harmony'
 
 const resolver = createGatewayDiscoveryResolver()
 const gateway = await resolver.discover({
-  manualDsn: '10.0.2.2:18765',
+  manualDsn: '127.0.0.1:18765',
   mdnsContext: this.getUIContext().getHostContext(),
   requestTimeoutMs: 2000
 })
@@ -370,11 +372,11 @@ const exportServer = await startExportServer(18765, queue, {
 
 - `http://<device-ip>:18765/v2/export/health`
 - `http://<device-ip>:18765/v2/export/metrics`
-- `http://<device-ip>:18765/v2/export/logs`
-- `http://<device-ip>:18765/v2/export/logs?platform=harmony&appId=demo.app&sessionId=session-1`
+- `http://<device-ip>:18765/v2/logs`
+- `http://<device-ip>:18765/v2/logs?platform=harmony&appId=demo.app&sessionId=session-1`
 - `http://<device-ip>:18765/v2/export/sources`
 
-`/v2/export/logs` 的 `platform`、`appId`、`sessionId` 都是可选参数：
+`/v2/logs` 的 `platform`、`appId`、`sessionId` 都是可选参数：
 
 - 不传或传空字符串时，等同于不启用该字段过滤
 - 多个过滤条件同时传入时，按 AND 关系匹配
