@@ -97,6 +97,7 @@ jobs:
             echo "Cannot find hvigorw in Harmony command line tools." >&2
             exit 1
           fi
+          chmod +x "${hvigorw_bin}" 2>/dev/null || true
           echo "HVIGORW_BIN=${hvigorw_bin}" >> "${GITHUB_ENV}"
 
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
