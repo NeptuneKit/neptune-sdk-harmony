@@ -87,6 +87,7 @@ jobs:
 
           echo "${HOME}/harmonyOS-command-line-tools/bin" >> "${GITHUB_PATH}"
           echo "${HOME}/harmonyOS-command-line-tools/hvigor/bin" >> "${GITHUB_PATH}"
+          echo "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" >> "${GITHUB_PATH}"
           echo "HOS_SDK_HOME=${GITHUB_WORKSPACE}/hwsdk" >> "${GITHUB_ENV}"
 
           chmod +x "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" 2>/dev/null || true
@@ -117,6 +118,11 @@ jobs:
           fi
           if [[ -x "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init" ]]; then
             "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init" || true
+          fi
+
+          if [[ -d "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" ]]; then
+            echo "Node bin tools:"
+            ls -la "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" || true
           fi
 
       - name: Update Harmony package version
