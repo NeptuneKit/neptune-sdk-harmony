@@ -53,6 +53,55 @@ Demo 页面对 SDK 的使用方式是：
 ./scripts/start-demo-via-hdc.sh
 ```
 
+## Debug only 接入策略
+
+当前结论：
+
+- Harmony 不提供类似 Android `debugImplementation` 的按构建模式依赖声明。
+- 如果要“只在 debug 接入 SDK”，需要在工程层显式约束。
+
+### 目标 A：仅 debug 启用 SDK 功能
+
+执行方式：
+
+1. 保留 `entry/oh-package.json5` 中对 `library` 的依赖。
+2. 应用启动时按构建模式判断，仅在 debug 分支初始化 SDK。
+3. release 分支不执行 SDK 初始化。
+
+适用场景：
+
+- 团队希望先低成本接入，优先控制运行时行为。
+
+### 目标 B：release 包不包含 SDK
+
+执行方式：
+
+1. 维护两份依赖清单：
+   - `entry/oh-package.debug.json5`：包含 `neptune-sdk-harmony`。
+   - `entry/oh-package.release.json5`：不包含 `neptune-sdk-harmony`。
+2. 构建前复制为 `entry/oh-package.json5`。
+3. 每次切换后必须重新执行 `ohpm install --all`。
+4. 再执行对应模式构建。
+
+命令模板：
+
+```bash
+# debug
+cp entry/oh-package.debug.json5 entry/oh-package.json5
+ohpm install --all
+./hvigorw --mode module -p module=entry assembleHap --mode debug --no-daemon
+
+# release
+cp entry/oh-package.release.json5 entry/oh-package.json5
+ohpm install --all
+./hvigorw --mode module -p module=entry assembleHap --mode release --no-daemon
+```
+
+CI 约束：
+
+- release pipeline 必须显式切到 `oh-package.release.json5` 后再构建。
+- 若 pipeline 未执行依赖切换与重装步骤，视为无效构建结果。
+
 ## 模拟器运行步骤
 
 ### DevEco Studio
