@@ -65,6 +65,7 @@ interface InspectorAttrs {
   backgroundColor?: string
   background?: string
   bgColor?: string
+  fill?: string
   fontColor?: string
   textColor?: string
   color?: string
@@ -76,6 +77,8 @@ interface InspectorAttrs {
   radius?: string | number
   borderWidth?: string | number
   borderColor?: string
+  stroke?: string
+  strokeWidth?: string | number
   zIndex?: string | number
   textAlign?: string
   textAlignHorizontal?: string
@@ -606,15 +609,15 @@ class DemoRuntime {
 
     const style: ExportViewTreeStyle = {}
     style.opacity = this.readAttrNumber(attrs, ['opacity', 'alpha'])
-    style.backgroundColor = this.readAttrString(attrs, ['backgroundColor', 'background', 'bgColor'])
+    style.backgroundColor = this.readAttrString(attrs, ['backgroundColor', 'background', 'bgColor', 'fill'])
     style.textColor = this.readAttrString(attrs, ['fontColor', 'textColor', 'color'])
     style.fontSize = this.readTypographyNumber(attrs, ['fontSize'], 'vp')
     style.lineHeight = this.readTypographyNumber(attrs, ['lineHeight'], 'fp')
     style.letterSpacing = this.readTypographyNumber(attrs, ['letterSpacing'], 'fp')
     style.fontWeight = this.readAttrString(attrs, ['fontWeight'])
     style.borderRadius = this.readAttrNumber(attrs, ['borderRadius', 'radius'])
-    style.borderWidth = this.readAttrNumber(attrs, ['borderWidth'])
-    style.borderColor = this.readAttrString(attrs, ['borderColor'])
+    style.borderWidth = this.readAttrNumber(attrs, ['borderWidth', 'strokeWidth'])
+    style.borderColor = this.readAttrString(attrs, ['borderColor', 'stroke'])
     style.zIndex = this.readAttrNumber(attrs, ['zIndex'])
     style.textAlign = this.readAttrString(attrs, ['textAlign', 'textAlignHorizontal', 'align'])
     if (
@@ -871,6 +874,8 @@ class DemoRuntime {
         return attrs.background
       case 'bgColor':
         return attrs.bgColor
+      case 'fill':
+        return attrs.fill
       case 'fontColor':
         return attrs.fontColor
       case 'textColor':
@@ -889,6 +894,10 @@ class DemoRuntime {
         return attrs.borderWidth
       case 'borderColor':
         return attrs.borderColor
+      case 'stroke':
+        return attrs.stroke
+      case 'strokeWidth':
+        return attrs.strokeWidth
       case 'zIndex':
         return attrs.zIndex
       case 'textAlign':

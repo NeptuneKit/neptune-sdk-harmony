@@ -25,6 +25,7 @@ interface InspectorAttrs {
   backgroundColor?: string
   background?: string
   bgColor?: string
+  fill?: string
   fontColor?: string
   textColor?: string
   color?: string
@@ -37,6 +38,8 @@ interface InspectorAttrs {
   radius?: string | number
   borderWidth?: string | number
   borderColor?: string
+  stroke?: string
+  strokeWidth?: string | number
   zIndex?: string | number
   textAlign?: string
   textAlignHorizontal?: string
@@ -246,7 +249,7 @@ export class ArkUIViewTreeCollector {
 
     const style: ExportViewTreeStyle = {}
     style.opacity = this.readAttrNumber(attrs, ['opacity', 'alpha'])
-    style.backgroundColor = this.readAttrString(attrs, ['backgroundColor', 'background', 'bgColor'])
+    style.backgroundColor = this.readAttrString(attrs, ['backgroundColor', 'background', 'bgColor', 'fill'])
     style.textColor = this.readAttrString(attrs, ['fontColor', 'textColor', 'color'])
     const fontSizeMeasurement = this.readTypographyMeasurement(attrs, ['fontSize'], 'vp')
     const lineHeightMeasurement = this.readTypographyMeasurement(attrs, ['lineHeight'], 'fp')
@@ -263,8 +266,8 @@ export class ArkUIViewTreeCollector {
     style.fontWeight = fontWeight
     style.fontWeightRaw = fontWeight
     style.borderRadius = this.readAttrNumber(attrs, ['borderRadius', 'radius'])
-    style.borderWidth = this.readAttrNumber(attrs, ['borderWidth'])
-    style.borderColor = this.readAttrString(attrs, ['borderColor'])
+    style.borderWidth = this.readAttrNumber(attrs, ['borderWidth', 'strokeWidth'])
+    style.borderColor = this.readAttrString(attrs, ['borderColor', 'stroke'])
     style.zIndex = this.readAttrNumber(attrs, ['zIndex'])
     style.textAlign = this.readAttrString(attrs, ['textAlign', 'textAlignHorizontal', 'align'])
     if (
@@ -564,6 +567,8 @@ export class ArkUIViewTreeCollector {
         return attrs.background
       case 'bgColor':
         return attrs.bgColor
+      case 'fill':
+        return attrs.fill
       case 'fontColor':
         return attrs.fontColor
       case 'textColor':
@@ -584,6 +589,10 @@ export class ArkUIViewTreeCollector {
         return attrs.borderWidth
       case 'borderColor':
         return attrs.borderColor
+      case 'stroke':
+        return attrs.stroke
+      case 'strokeWidth':
+        return attrs.strokeWidth
       case 'zIndex':
         return attrs.zIndex
       case 'textAlign':
