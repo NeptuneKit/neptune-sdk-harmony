@@ -3,12 +3,16 @@ import { socket } from '@kit.NetworkKit'
 import {
   ExportCursorPage,
   ExportHealth,
+  ExportInspectorSnapshot,
   ExportMetrics,
   ExportSourceEntry,
+  ExportViewTreeNode,
+  ExportViewTreeSnapshot,
   IngestLogRecord,
   LogQueryOptions,
   LogRecord,
-  LOG_QUEUE_CAPACITY
+  LOG_QUEUE_CAPACITY,
+  ViewTreeQueryOptions
 } from '../model/LogModels'
 import {
   GatewayClientBusEnvelope,
@@ -22,6 +26,9 @@ export interface ExportServerOptions {
   startedAt?: string
 }
 
+export type ViewTreeSnapshotProvider = (query: ViewTreeQueryOptions) => ExportViewTreeSnapshot | null
+export type InspectorSnapshotProvider = (query: ViewTreeQueryOptions) => ExportInspectorSnapshot | null
+
 export class ExportServer {
   private readonly queue: LogQueue
   private readonly serviceName: string
@@ -32,6 +39,8 @@ export class ExportServer {
   private running: boolean = false
   private listeningPort: number | null = null
   private commandSequence: number = 0
+  private viewTreeSnapshotProvider: ViewTreeSnapshotProvider | null = null
+  private inspectorSnapshotProvider: InspectorSnapshotProvider | null = null
 
   constructor(queue: LogQueue = new LogQueue(), options: ExportServerOptions = {}) {
     this.queue = queue
@@ -140,6 +149,49 @@ export class ExportServer {
     }
   }
 
+  setInspectorSnapshotProvider(provider: InspectorSnapshotProvider | null): void {
+    this.inspectorSnapshotProvider = provider
+  }
+
+  setViewTreeSnapshotProvider(provider: ViewTreeSnapshotProvider | null): void {
+    this.viewTreeSnapshotProvider = provider
+  }
+
+  viewTreeSnapshot(query: ViewTreeQueryOptions = {}): ExportViewTreeSnapshot {
+    if (this.viewTreeSnapshotProvider !== null) {
+      const providedSnapshot = this.viewTreeSnapshotProvider(query)
+      if (providedSnapshot !== null) {
+        return providedSnapshot
+      }
+    }
+
+    const roots: ExportViewTreeNode[] = this.sourcesSnapshot().map((source) => this.toViewTreeRoot(source))
+    return {
+      snapshotId: `harmony-view-tree-${Date.now()}`,
+      capturedAt: new Date().toISOString(),
+      platform: this.normalizePlatform(query.platform),
+      roots
+    }
+  }
+
+  inspectorSnapshot(query: ViewTreeQueryOptions = {}): ExportInspectorSnapshot {
+    if (this.inspectorSnapshotProvider !== null) {
+      const providedSnapshot = this.inspectorSnapshotProvider(query)
+      if (providedSnapshot !== null) {
+        return providedSnapshot
+      }
+    }
+
+    return {
+      snapshotId: `harmony-inspector-${Date.now()}`,
+      capturedAt: new Date().toISOString(),
+      platform: this.normalizePlatform(query.platform),
+      available: false,
+      payload: null,
+      reason: 'Inspector snapshot provider unavailable.'
+    }
+  }
+
   private registerRoutes(server: HttpServer): void {
     server.get('/v2/export/health', (_req: HttpRequest, res: HttpResponse) => {
       res.status(200).json(this.health() as ESObject)
@@ -158,6 +210,16 @@ export class ExportServer {
       res.status(200).json(this.sourcesSnapshot() as ESObject)
     })
 
+    server.get('/v2/ui-tree/inspector', (req: HttpRequest, res: HttpResponse) => {
+      const query = this.parseViewTreeQuery(req)
+      res.status(200).json(this.normalizeInspectorSnapshotPayload(this.inspectorSnapshot(query)) as ESObject)
+    })
+
+    server.get('/v2/ui-tree/snapshot', (req: HttpRequest, res: HttpResponse) => {
+      const query = this.parseViewTreeQuery(req)
+      res.status(200).json(this.viewTreeSnapshot(query) as ESObject)
+    })
+
     server.post('/v2/client/command', (req: HttpRequest, res: HttpResponse) => {
       res.status(200).json(this.handleClientCommand(req) as ESObject)
     })
@@ -174,6 +236,35 @@ export class ExportServer {
       platform: this.normalizeQueryField(req.query.get('platform')),
       appId: this.normalizeQueryField(req.query.get('appId')),
       sessionId: this.normalizeQueryField(req.query.get('sessionId'))
+    }
+  }
+
+  private parseViewTreeQuery(req: HttpRequest): ViewTreeQueryOptions {
+    return {
+      platform: this.normalizeQueryField(req.query.get('platform')),
+      appId: this.normalizeQueryField(req.query.get('appId')),
+      sessionId: this.normalizeQueryField(req.query.get('sessionId')),
+      deviceId: this.normalizeQueryField(req.query.get('deviceId'))
+    }
+  }
+
+  private normalizeInspectorSnapshotPayload(snapshot: ExportInspectorSnapshot): ExportInspectorSnapshot {
+    const payload = snapshot.payload
+    if (typeof payload !== 'string') {
+      return snapshot
+    }
+
+    try {
+      return {
+        snapshotId: snapshot.snapshotId,
+        capturedAt: snapshot.capturedAt,
+        platform: snapshot.platform,
+        available: snapshot.available,
+        payload: JSON.parse(payload) as Object,
+        reason: snapshot.reason
+      }
+    } catch (_error) {
+      return snapshot
     }
   }
 
@@ -284,6 +375,13 @@ export class ExportServer {
     return normalized === null ? undefined : normalized
   }
 
+  private normalizePlatform(value: string | undefined): 'ios' | 'android' | 'harmony' | 'web' {
+    if (value === 'ios' || value === 'android' || value === 'web') {
+      return value
+    }
+    return 'harmony'
+  }
+
   private matchesQueryField(actual: string | undefined, expected: string | undefined): boolean {
     if (expected === undefined) {
       return true
@@ -301,6 +399,16 @@ export class ExportServer {
       sdkName: source.sdkName,
       sdkVersion: source.sdkVersion,
       lastSeenAt: source.lastSeenAt
+    }
+  }
+
+  private toViewTreeRoot(source: ExportSourceEntry): ExportViewTreeNode {
+    const rootName = `${source.sdkName}@${source.sdkVersion}`
+    return {
+      id: [source.platform, source.appId, source.sessionId, source.deviceId].join('|'),
+      parentId: null,
+      name: rootName,
+      children: []
     }
   }
 

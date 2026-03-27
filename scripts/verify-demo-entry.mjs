@@ -38,13 +38,18 @@ expectContains(
 )
 expectContains(
   path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
-  '写入 Demo 日志批次',
-  'demo page must expose the write-log button'
+  '写入日志批次',
+  'demo page must expose the write-batch button'
 )
 expectContains(
   path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
-  '发现网关',
-  'demo page must expose the gateway discovery button'
+  '发现并上报',
+  'demo page must expose the discover-and-ingest button'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
+  '刷新快照',
+  'demo page must expose the refresh snapshot button'
 )
 expectContains(
   path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
@@ -90,6 +95,16 @@ expectContains(
   path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
   'this.gatewayIngestClient.ingest',
   'demo runtime must POST the discovery log after gateway discovery succeeds'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  'length: 6',
+  'demo runtime must query recent logs with LogQueryOptions.length'
+)
+expectNotContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  'limit: 6',
+  'demo runtime must not use removed LogQueryOptions.limit'
 )
 expectContains(
   path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),

@@ -1,4 +1,11 @@
-import { DemoGatewayDiscoveryCard, DemoLogCard, DemoSnapshot, DemoSourceCard, demoRuntime } from '../runtime/DemoRuntime'
+import {
+  DemoGatewayDiscoveryCard,
+  DemoLogCard,
+  DemoSnapshot,
+  DemoSourceCard,
+  demoRuntime
+} from '../runtime/DemoRuntime'
+import router from '@ohos.router'
 
 @Entry
 @Component
@@ -12,6 +19,7 @@ struct Index {
     }
 
     this.autoDiscoveryTriggered = true
+    demoRuntime.setUIContext(this.getUIContext())
     demoRuntime.setGatewayDiscoveryContext(this.getUIContext().getHostContext() as Object)
     console.info('Index.aboutToAppear auto-triggering gateway discovery once.')
     this.snapshot = demoRuntime.beginGatewayDiscovery()
@@ -28,6 +36,10 @@ struct Index {
   private onDiscoverGatewayTap(): void {
     this.snapshot = demoRuntime.beginGatewayDiscovery()
     void this.refreshGatewayDiscovery()
+  }
+
+  private onRefreshSnapshotTap(): void {
+    this.snapshot = demoRuntime.snapshot('已刷新快照')
   }
 
   private async refreshGatewayDiscovery(): Promise<void> {
@@ -120,7 +132,7 @@ struct Index {
             .fontColor('#9FB2C7')
             .lineHeight(20)
 
-          Button('发现网关')
+          Button('发现并上报')
             .type(ButtonType.Capsule)
             .width('100%')
             .height(54)
@@ -188,7 +200,7 @@ struct Index {
           color: 'rgba(104, 143, 176, 0.25)'
         })
 
-        Button('写入 Demo 日志批次')
+        Button('写入日志批次')
           .type(ButtonType.Capsule)
           .width('100%')
           .height(54)
@@ -198,6 +210,30 @@ struct Index {
           .fontColor('#04121C')
           .onClick(() => {
             this.runDemoBatch()
+          })
+
+        Button('刷新快照')
+          .type(ButtonType.Capsule)
+          .width('100%')
+          .height(54)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor('#74D3F7')
+          .fontColor('#04121C')
+          .onClick(() => {
+            this.onRefreshSnapshotTap()
+          })
+
+        Button('进入复杂二级页')
+          .type(ButtonType.Capsule)
+          .width('100%')
+          .height(54)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor('#F7C873')
+          .fontColor('#04121C')
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/DeepDive' })
           })
 
         Column({ space: 12 }) {

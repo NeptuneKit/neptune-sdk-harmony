@@ -58,12 +58,72 @@ export interface ExportSourceEntry {
   lastSeenAt: string
 }
 
+export interface ExportViewTreeNode {
+  id: string
+  parentId: string | null
+  name: string
+  frame?: ExportViewTreeFrame
+  style?: ExportViewTreeStyle
+  text?: string
+  visible?: boolean
+  children: ExportViewTreeNode[]
+}
+
+export interface ExportViewTreeFrame {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface ExportViewTreeStyle {
+  opacity?: number
+  backgroundColor?: string
+  textColor?: string
+  fontSize?: number
+  lineHeight?: number
+  letterSpacing?: number
+  typographyUnit?: 'dp'
+  sourceTypographyUnit?: 'vp' | 'fp' | 'px'
+  platformFontScale?: number
+  fontWeight?: string
+  fontWeightRaw?: string
+  borderRadius?: number
+  borderWidth?: number
+  borderColor?: string
+  zIndex?: number
+  textAlign?: string
+}
+
+export interface ExportViewTreeSnapshot {
+  snapshotId: string
+  capturedAt: string
+  platform: Platform
+  roots: ExportViewTreeNode[]
+}
+
+export interface ExportInspectorSnapshot {
+  snapshotId: string
+  capturedAt: string
+  platform: Platform
+  available: boolean
+  payload: Object | null
+  reason?: string
+}
+
 export interface LogQueryOptions {
   cursor?: string
   length?: number
   platform?: string
   appId?: string
   sessionId?: string
+}
+
+export interface ViewTreeQueryOptions {
+  platform?: string
+  appId?: string
+  sessionId?: string
+  deviceId?: string
 }
 
 export interface ExportServerRoute {

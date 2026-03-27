@@ -14,7 +14,7 @@
 
 - 新增 `entry` 模块，能够被 DevEco / hvigor 识别并打包为 HAP。
 - Demo 页面通过模块依赖引用现有 `library` HAR，不复制核心 SDK 代码。
-- 页面提供一个按钮，点击后向 Neptune SDK 写入示例日志，并在页面内刷新 `metrics` 与 `sources` 摘要。
+- 页面采用统一三按钮模型：`写入日志批次`、`发现并上报`、`刷新快照`。
 - 保持现有 `library` 构建链路不退化。
 - 提供独立的 demo 构建命令和脚本。
 - README、文档和记忆同步更新，说明模拟器运行步骤。
@@ -39,13 +39,28 @@
 - 当我执行 `./hvigorw --mode module -p module=entry assembleHap --no-daemon`
 - 那么应成功产出可安装到模拟器的 HAP
 
-### 场景 3：按钮能写入 SDK 日志
+### 场景 3：写入按钮能写入 SDK 日志
 
 - 假如 demo 页面已在模拟器中打开
-- 当我点击“写入 Demo 日志批次”按钮
+- 当我点击“写入日志批次”按钮
 - 那么页面应调用 Neptune SDK 写入一批日志，并刷新 `queueSize`、`totalIngested`、`sources`、`recent logs` 的展示
 
-### 场景 4：核心代码不重复
+### 场景 4：发现并上报按钮触发网关链路
+
+- 假如 demo 页面已在模拟器中打开，且 CLI 网关可访问
+- 当我点击“发现并上报”按钮
+- 那么页面应先执行 gateway discovery
+- 并在发现成功后自动触发 `POST /v2/logs:ingest`
+- 且页面应展示上报结果状态
+
+### 场景 5：刷新按钮只刷新快照
+
+- 假如页面当前已有一组状态
+- 当我点击“刷新快照”按钮
+- 那么页面应刷新展示
+- 且不新增日志、不触发 discovery、不触发 ingest
+
+### 场景 6：核心代码不重复
 
 - 假如 demo 需要 Neptune SDK 的日志能力
 - 当我查看 `entry` 的依赖配置
