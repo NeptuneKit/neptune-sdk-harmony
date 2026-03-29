@@ -5,3 +5,5 @@ library/build/
 library/.preview/
 library/BuildProfile.ets
 library/src/main/ets/
+
+.idea/
