@@ -276,15 +276,22 @@ export class GatewayDiscoveryResolver {
   }
 
   private resolveReachableHost(payloadHost: string, candidateHost: string): string {
-    if (!this.isLoopbackOrWildcardHost(payloadHost)) {
-      return payloadHost
+    const normalizedPayloadHost = payloadHost.trim()
+    const normalizedCandidateHost = candidateHost.trim()
+
+    if (!this.isLoopbackOrWildcardHost(normalizedPayloadHost)) {
+      return normalizedPayloadHost
     }
 
-    if (this.isLoopbackOrWildcardHost(candidateHost)) {
-      return payloadHost
+    if (this.isWildcardHost(normalizedPayloadHost)) {
+      return normalizedCandidateHost.length > 0 ? normalizedCandidateHost : normalizedPayloadHost
     }
 
-    return candidateHost
+    if (!this.isLoopbackOrWildcardHost(normalizedCandidateHost)) {
+      return normalizedCandidateHost
+    }
+
+    return normalizedPayloadHost
   }
 
   private isLoopbackOrWildcardHost(host: string): boolean {
@@ -294,6 +301,11 @@ export class GatewayDiscoveryResolver {
       normalized === '0.0.0.0' ||
       normalized === '::1' ||
       normalized === '::'
+  }
+
+  private isWildcardHost(host: string): boolean {
+    const normalized = host.trim().toLowerCase()
+    return normalized === '0.0.0.0' || normalized === '::'
   }
 }
 

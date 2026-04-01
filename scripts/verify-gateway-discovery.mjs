@@ -90,15 +90,27 @@ function isLoopbackOrWildcardHost(host) {
 }
 
 function resolveReachableHost(payloadHost, candidateHost) {
-  if (!isLoopbackOrWildcardHost(payloadHost)) {
-    return payloadHost
+  const normalizedPayloadHost = normalizeText(payloadHost)
+  const normalizedCandidateHost = normalizeText(candidateHost)
+
+  if (!isLoopbackOrWildcardHost(normalizedPayloadHost)) {
+    return normalizedPayloadHost
   }
 
-  if (isLoopbackOrWildcardHost(candidateHost)) {
-    return payloadHost
+  if (isWildcardHost(normalizedPayloadHost)) {
+    return normalizedCandidateHost ?? normalizedPayloadHost
   }
 
-  return candidateHost
+  if (!isLoopbackOrWildcardHost(normalizedCandidateHost)) {
+    return normalizedCandidateHost
+  }
+
+  return normalizedPayloadHost
+}
+
+function isWildcardHost(host) {
+  const normalized = normalizeText(host)?.toLowerCase()
+  return normalized === '0.0.0.0' || normalized === '::'
 }
 
 async function resolveGateway({ mdnsProvider, httpClient, config = {} }) {
@@ -246,6 +258,21 @@ const loopbackRewrite = await resolveGateway({
 assert.equal(loopbackRewrite.source, 'manual-dsn')
 assert.equal(loopbackRewrite.host, '10.0.2.2')
 assert.equal(loopbackRewrite.endpointUrl, 'http://10.0.2.2:18765')
+
+const wildcardRewrite = await resolveGateway({
+  mdnsProvider: mdnsProviderFromCandidates([
+    { host: '10.0.2.2', port: 18004, source: 'mdns', label: 'wildcard-host' }
+  ]),
+  httpClient: httpClientFromMap(new Map([
+    [
+      'http://10.0.2.2:18004/v2/gateway/discovery',
+      { statusCode: 200, bodyText: JSON.stringify({ host: '0.0.0.0', port: 18765, version: '2.0.0-alpha.1' }) }
+    ]
+  ]))
+})
+assert.equal(wildcardRewrite.source, 'mdns')
+assert.equal(wildcardRewrite.host, '10.0.2.2')
+assert.equal(wildcardRewrite.endpointUrl, 'http://10.0.2.2:18765')
 
 const invalidSkipped = await resolveGateway({
   mdnsProvider: mdnsProviderFromCandidates([
