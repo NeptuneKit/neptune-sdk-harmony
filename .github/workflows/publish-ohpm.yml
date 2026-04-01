@@ -16,27 +16,15 @@ on:
         required: false
         default: false
         type: boolean
-      run_harmony_build:
-        description: "Run hvigor HAR build before publish (requires hvigor in runner)"
-        required: false
-        default: false
-        type: boolean
-      har_asset_url:
-        description: "Optional URL to prebuilt .har file (used when run_harmony_build=false)"
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-
-    env:
-      OHPM_REGISTRY: https://ohpm.openharmony.cn/ohpm/
-
+  resolve-version:
+    runs-on: [self-hosted, macOS, ARM64]
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
     steps:
       - name: Resolve package version
         id: version
@@ -64,232 +52,16 @@ jobs:
 
           printf 'version_name=%s\n' "${version_name}" >> "${GITHUB_OUTPUT}"
 
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install Harmony command line tools
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          release_json="$(curl -sSL -H 'Accept: application/vnd.github+json' https://api.github.com/repos/harmonyos-dev/hos-sdk/releases/latest)"
-          asset_url="$(printf '%s' "${release_json}" | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next((a.get("browser_download_url", "") for a in data.get("assets", []) if a.get("name", "").startswith("commandline-tools-linux-") and a.get("name", "").endswith(".zip")), ""))')"
-          if [[ -z "${asset_url}" || "${asset_url}" == "null" ]]; then
-            echo "Cannot resolve Harmony command line tools download url." >&2
-            exit 1
-          fi
-
-          curl -sSL -o commandline-tools.zip "${asset_url}"
-          unzip -q commandline-tools.zip
-          mkdir -p "${HOME}/harmonyOS-command-line-tools"
-          cp -R command-line-tools/* "${HOME}/harmonyOS-command-line-tools/"
-
-          echo "${HOME}/harmonyOS-command-line-tools/bin" >> "${GITHUB_PATH}"
-          echo "${HOME}/harmonyOS-command-line-tools/hvigor/bin" >> "${GITHUB_PATH}"
-          echo "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" >> "${GITHUB_PATH}"
-          echo "HOS_SDK_HOME=${GITHUB_WORKSPACE}/hwsdk" >> "${GITHUB_ENV}"
-
-          chmod +x "${HOME}/harmonyOS-command-line-tools/bin/hvigorw" 2>/dev/null || true
-          chmod +x "${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigorw" 2>/dev/null || true
-          chmod +x "${HOME}/harmonyOS-command-line-tools/hvigor/bin/hvigor" 2>/dev/null || true
-
-          hvigorw_bin="$(find "${HOME}/harmonyOS-command-line-tools" -type f -name hvigorw | head -n1 || true)"
-          hvigor_bin="$(find "${HOME}/harmonyOS-command-line-tools" -type f -name hvigor | head -n1 || true)"
-          if [[ -n "${hvigorw_bin}" ]]; then
-            echo "HVIGORW_BIN=${hvigorw_bin}" >> "${GITHUB_ENV}"
-          fi
-          if [[ -n "${hvigor_bin}" ]]; then
-            echo "HVIGOR_BIN=${hvigor_bin}" >> "${GITHUB_ENV}"
-          fi
-          echo "Resolved HVIGORW_BIN=${hvigorw_bin:-<none>}"
-          echo "Resolved HVIGOR_BIN=${hvigor_bin:-<none>}"
-
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
-          chmod +x "${HOME}/harmonyOS-command-line-tools/sdkmanager/bin/sdkmgr"
-          "${HOME}/harmonyOS-command-line-tools/sdkmanager/bin/sdkmgr" install toolchains:9 OpenHarmony/toolchains:9 --accept-license
-
-          # Some command line tool bundles require explicit init script execution before ohpm can run.
-          if [[ -x "${HOME}/harmonyOS-command-line-tools/bin/init.sh" ]]; then
-            bash "${HOME}/harmonyOS-command-line-tools/bin/init.sh" || true
-          fi
-          if [[ -x "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" ]]; then
-            bash "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" || true
-          fi
-          if [[ -x "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init" ]]; then
-            "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init" || true
-          fi
-
-          node_hvigorw="${HOME}/harmonyOS-command-line-tools/node_modules/.bin/hvigorw"
-          node_hvigor="${HOME}/harmonyOS-command-line-tools/node_modules/.bin/hvigor"
-          if [[ -x "${node_hvigorw}" ]]; then
-            echo "HVIGORW_BIN=${node_hvigorw}" >> "${GITHUB_ENV}"
-          fi
-          if [[ -x "${node_hvigor}" ]]; then
-            echo "HVIGOR_BIN=${node_hvigor}" >> "${GITHUB_ENV}"
-          fi
-          if [[ -d "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" ]]; then
-            echo "Node bin tools (post-init):"
-            ls -la "${HOME}/harmonyOS-command-line-tools/node_modules/.bin" || true
-          fi
-
-      - name: Update Harmony package version
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          version_name="${{ steps.version.outputs.version_name }}"
-          sed -i.bak -E "s/(\"version\"\s*:\s*\")[^\"]+(\")/\1${version_name}\2/" library/oh-package.json5
-          rm -f library/oh-package.json5.bak
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          ohpm config set registry "${OHPM_REGISTRY}" || true
-          ohpm install
-
-      - name: Build HAR
-        if: ${{ inputs.run_harmony_build }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -x "${HOME}/harmonyOS-command-line-tools/bin/init.sh" ]]; then
-            # init.sh exports Harmony tool paths for current shell.
-            # shellcheck disable=SC1091
-            source "${HOME}/harmonyOS-command-line-tools/bin/init.sh" || true
-          fi
-          if [[ -x "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" ]]; then
-            # shellcheck disable=SC1091
-            source "${HOME}/harmonyOS-command-line-tools/ohpm/bin/init.sh" || true
-          fi
-
-          discovered_bin=""
-          discovered_node_script=""
-          while IFS= read -r candidate; do
-            if [[ "${candidate}" == *"/hvigor.js" && -f "${candidate}" ]]; then
-              discovered_node_script="${candidate}"
-            fi
-            if [[ -f "${candidate}" && -x "${candidate}" ]]; then
-              discovered_bin="${candidate}"
-              break
-            fi
-          done < <(find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 10 \( -name "hvigor" -o -name "hvigorw" -o -name "hvigor.js" \) 2>/dev/null | sort -u)
-
-          if [[ -n "${HVIGOR_BIN:-}" && -x "${HVIGOR_BIN}" ]]; then
-            "${HVIGOR_BIN}" --mode module -p module=library assembleHar --no-daemon
-          elif [[ -n "${HVIGORW_BIN:-}" && -x "${HVIGORW_BIN}" ]]; then
-            "${HVIGORW_BIN}" --mode module -p module=library assembleHar --no-daemon
-          elif command -v hvigor >/dev/null 2>&1; then
-            "$(command -v hvigor)" --mode module -p module=library assembleHar --no-daemon
-          elif command -v hvigorw >/dev/null 2>&1; then
-            "$(command -v hvigorw)" --mode module -p module=library assembleHar --no-daemon
-          elif [[ -n "${discovered_bin}" ]]; then
-            "${discovered_bin}" --mode module -p module=library assembleHar --no-daemon
-          elif [[ -n "${discovered_node_script}" ]]; then
-            node "${discovered_node_script}" --mode module -p module=library assembleHar --no-daemon
-          elif [[ -x "./hvigorw" ]]; then
-            ./hvigorw --mode module -p module=library assembleHar --no-daemon
-          else
-            echo "Cannot find hvigor executable for build." >&2
-            echo "Scanned hvigor candidates:" >&2
-            find "${HOME}" "${GITHUB_WORKSPACE}" -maxdepth 10 \( -name "hvigor" -o -name "hvigorw" -o -name "hvigor.js" \) -print >&2 2>/dev/null || true
-            exit 1
-          fi
-
-      - name: Resolve HAR artifact
-        if: ${{ !inputs.dry_run }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          resolved_har=""
-          if [[ "${{ inputs.run_harmony_build }}" == "true" ]]; then
-            built_har="$(find "${GITHUB_WORKSPACE}/library/build" -type f -name "*.har" | head -n1 || true)"
-            if [[ -n "${built_har}" ]]; then
-              resolved_har="${built_har}"
-            fi
-          fi
-
-          if [[ -z "${resolved_har}" && -n "${{ inputs.har_asset_url }}" ]]; then
-            mkdir -p "${RUNNER_TEMP}/har"
-            download_har="${RUNNER_TEMP}/har/library.har"
-            curl -fL "${{ inputs.har_asset_url }}" -o "${download_har}"
-            resolved_har="${download_har}"
-          fi
-
-          if [[ -z "${resolved_har}" ]]; then
-            fallback_har="${GITHUB_WORKSPACE}/library/build/default/outputs/default/library.har"
-            if [[ -f "${fallback_har}" ]]; then
-              resolved_har="${fallback_har}"
-            fi
-          fi
-
-          if [[ -z "${resolved_har}" || ! -f "${resolved_har}" ]]; then
-            echo "No .har artifact found. Provide har_asset_url or enable run_harmony_build on a runner with hvigor." >&2
-            exit 1
-          fi
-
-          echo "HAR_FILE_PATH=${resolved_har}" >> "${GITHUB_ENV}"
-
-      - name: Configure OHPM publish credentials
-        if: ${{ !inputs.dry_run }}
-        shell: bash
-        env:
-          OHPM_PRIVATE_KEY_PEM: ${{ secrets.OHPM_PRIVATE_KEY_PEM }}
-          OHPM_PUBLISH_ID: ${{ secrets.OHPM_PUBLISH_ID }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${OHPM_PRIVATE_KEY_PEM}" ]]; then
-            echo "OHPM_PRIVATE_KEY_PEM is required for publish." >&2
-            exit 1
-          fi
-          if [[ -z "${OHPM_PUBLISH_ID}" ]]; then
-            echo "OHPM_PUBLISH_ID is required for publish." >&2
-            exit 1
-          fi
-
-          mkdir -p "${HOME}/.ohpm"
-          key_path="${HOME}/.ohpm/publish_key.pem"
-          printf '%s\n' "${OHPM_PRIVATE_KEY_PEM}" > "${key_path}"
-          chmod 600 "${key_path}"
-
-          ohpm config set key_path "${key_path}"
-          ohpm config set publish_id "${OHPM_PUBLISH_ID}"
-          ohpm config set registry "${OHPM_REGISTRY}"
-
-      - name: Publish HAR to OHPM
-        if: ${{ !inputs.dry_run }}
-        shell: bash
-        env:
-          OHPM_KEY_PASSPHRASE: ${{ secrets.OHPM_KEY_PASSPHRASE }}
-          OHPM_PUBLISH_ID: ${{ secrets.OHPM_PUBLISH_ID }}
-        run: |
-          set -euo pipefail
-          har_file="${HAR_FILE_PATH:-}"
-          if [[ -z "${har_file}" || ! -f "${har_file}" ]]; then
-            echo "HAR_FILE_PATH is missing or invalid." >&2
-            exit 1
-          fi
-          key_path="${HOME}/.ohpm/publish_key.pem"
-          cd library
-          if [[ -n "${OHPM_KEY_PASSPHRASE:-}" ]]; then
-            if command -v script >/dev/null 2>&1; then
-              printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | script -q -e -c "ohpm publish \"${har_file}\" --publish_registry \"${OHPM_REGISTRY}\"" /dev/null
-            else
-              printf '%s\n' "${OHPM_KEY_PASSPHRASE}" | ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}"
-            fi
-          else
-            ohpm publish "${har_file}" --publish_registry "${OHPM_REGISTRY}"
-          fi
+  publish:
+    needs: resolve-version
+    uses: NeptuneKit/.github/.github/workflows/ohpm-publish.yml@main
+    with:
+      version: ${{ needs.resolve-version.outputs.version_name }}
+      dry_run: ${{ inputs.dry_run || false }}
+      build_command: bash scripts/ci/build-ohpm-har.sh "${{ needs.resolve-version.outputs.version_name }}"
+      har_glob: library/build/**/*.har
+      license_path: library/LICENSE
+      readme_path: library/README.md
+      changelog_path: library/changelog.md
+      publish_registry: https://ohpm.openharmony.cn/ohpm/
+    secrets: inherit
