@@ -13,6 +13,23 @@ if [[ ! -f "library/oh-package.json5" ]]; then
   exit 1
 fi
 
+if [[ ! -f "library/src/main/ets/index.ets" ]]; then
+  mkdir -p "library/src/main/ets"
+  cat > "library/src/main/ets/index.ets" <<'ETS'
+export * from './model/LogModels'
+export * from './core/LogStoreBase'
+export * from './core/MemoryLogStore'
+export * from './core/RdbLogStore'
+export * from './core/LogQueue'
+export * from './core/LogQueueFactory'
+export * from './server/ExportServer'
+export * from './ui-tree/ArkUIViewTreeCollector'
+export * from './callback'
+export * from './discovery'
+export * from './ws'
+ETS
+fi
+
 sed -i.bak -E "s/(\"version\"\s*:\s*\")[^\"]+(\")/\1${version_name}\2/" library/oh-package.json5
 rm -f library/oh-package.json5.bak
 
