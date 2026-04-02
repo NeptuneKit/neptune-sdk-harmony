@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/linhey/.ohos/config/default_neptune-sdk-harmony_CksLVT1A1r-DsMURBnRGZNcgSvbhw7ALrA1gJybc1MU=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001A923071003C616AB572D2F170B435F19D201A8370CB8AB1DD81398724F4471873412B8B06000A",
+          "profile": "/Users/linhey/.ohos/config/default_neptune-sdk-harmony_CksLVT1A1r-DsMURBnRGZNcgSvbhw7ALrA1gJybc1MU=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/linhey/.ohos/config/default_neptune-sdk-harmony_CksLVT1A1r-DsMURBnRGZNcgSvbhw7ALrA1gJybc1MU=.p12",
+          "storePassword": "0000001AD1E9D176ED7AB1BB95B99C0DF31EECF8C0086849BE512D201C267F43319F61DB990EBC117FD1"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",

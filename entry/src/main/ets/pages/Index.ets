@@ -127,7 +127,7 @@ struct Index {
           }
           .alignItems(VerticalAlign.Center)
 
-          Text('点击后先尝试 mDNS，再回退到手动 DSN 10.0.2.2:18765，并请求 /v2/gateway/discovery。发现成功后会自动 POST /v2/logs:ingest 一条日志。')
+          Text('点击后先尝试 mDNS，再回退到手动 DSN 127.0.0.1:18765，并请求 /v2/gateway/discovery。发现成功后会自动 POST /v2/logs:ingest 一条日志。')
             .fontSize(13)
             .fontColor('#9FB2C7')
             .lineHeight(20)

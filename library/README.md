@@ -6,6 +6,16 @@ NeptuneKit Harmony SDK (`/v2 only`) for client registration, gateway communicati
 
 Use OHPM to add `neptune-sdk-harmony` in your HarmonyOS project dependencies.
 
+```bash
+ohpm install neptunekit-harmony-log
+```
+
+or:
+
+```bash
+ohpm i neptunekit-harmony-log
+```
+
 ## License
 
 Apache-2.0
