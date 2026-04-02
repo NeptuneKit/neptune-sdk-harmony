@@ -1,6 +1,12 @@
 import http from '@ohos.net.http'
 
-import { IngestLogRecord, Platform } from 'neptune-sdk-harmony'
+import {
+  createNeptuneHarmonyLogger,
+  createNeptuneHarmonyMetadata,
+  IngestLogRecord,
+  Platform,
+  setNeptuneHarmonyMetadata
+} from 'neptune-sdk-harmony'
 
 export interface GatewayIngestResult {
   state: 'success' | 'failed'
@@ -20,6 +26,8 @@ export interface GatewayRawViewTreeIngestRecord {
 }
 
 export class GatewayIngestHttpClient {
+  private readonly logger = createNeptuneHarmonyLogger('Neptune.Ingest.HttpClient')
+
   async ingest(
     endpointUrl: string,
     record: IngestLogRecord | IngestLogRecord[],
@@ -43,7 +51,13 @@ export class GatewayIngestHttpClient {
       const statusCode = Number(response.responseCode)
       const bodyText = this.normalizeBodyText(response.result)
       if (statusCode >= 200 && statusCode < 300) {
-        console.info(`GatewayIngestHttpClient ingest ok url=${requestUrl} status=${statusCode}`)
+        const metadata = createNeptuneHarmonyMetadata()
+        setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+        setNeptuneHarmonyMetadata(metadata, 'statusCode', statusCode)
+        this.logger.info(
+          'log ingest request succeeded',
+          metadata
+        )
         return {
           state: 'success',
           title: '日志上报成功',
@@ -52,7 +66,14 @@ export class GatewayIngestHttpClient {
         }
       }
 
-      console.error(`GatewayIngestHttpClient ingest failed url=${requestUrl} status=${statusCode}`)
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+      setNeptuneHarmonyMetadata(metadata, 'statusCode', statusCode)
+      setNeptuneHarmonyMetadata(metadata, 'bodyText', bodyText)
+      this.logger.error(
+        'log ingest request failed',
+        metadata
+      )
       return {
         state: 'failed',
         title: '日志上报失败',
@@ -60,8 +81,12 @@ export class GatewayIngestHttpClient {
         timestamp: new Date().toISOString()
       }
     } catch (error) {
-      console.error(
-        `GatewayIngestHttpClient ingest error url=${requestUrl} message=${error instanceof Error ? error.message : String(error)}`
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+      setNeptuneHarmonyMetadata(metadata, 'error', error instanceof Error ? error.message : String(error))
+      this.logger.error(
+        'log ingest request exception',
+        metadata
       )
       return {
         state: 'failed',
@@ -98,7 +123,13 @@ export class GatewayIngestHttpClient {
       const statusCode = Number(response.responseCode)
       const bodyText = this.normalizeBodyText(response.result)
       if (statusCode >= 200 && statusCode < 300) {
-        console.info(`GatewayIngestHttpClient raw ui-tree ingest ok url=${requestUrl} status=${statusCode}`)
+        const metadata = createNeptuneHarmonyMetadata()
+        setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+        setNeptuneHarmonyMetadata(metadata, 'statusCode', statusCode)
+        this.logger.info(
+          'raw ui-tree ingest request succeeded',
+          metadata
+        )
         return {
           state: 'success',
           title: '视图树上报成功',
@@ -107,7 +138,14 @@ export class GatewayIngestHttpClient {
         }
       }
 
-      console.error(`GatewayIngestHttpClient raw ui-tree ingest failed url=${requestUrl} status=${statusCode}`)
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+      setNeptuneHarmonyMetadata(metadata, 'statusCode', statusCode)
+      setNeptuneHarmonyMetadata(metadata, 'bodyText', bodyText)
+      this.logger.error(
+        'raw ui-tree ingest request failed',
+        metadata
+      )
       return {
         state: 'failed',
         title: '视图树上报失败',
@@ -115,8 +153,12 @@ export class GatewayIngestHttpClient {
         timestamp: new Date().toISOString()
       }
     } catch (error) {
-      console.error(
-        `GatewayIngestHttpClient raw ui-tree ingest error url=${requestUrl} message=${error instanceof Error ? error.message : String(error)}`
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+      setNeptuneHarmonyMetadata(metadata, 'error', error instanceof Error ? error.message : String(error))
+      this.logger.error(
+        'raw ui-tree ingest request exception',
+        metadata
       )
       return {
         state: 'failed',

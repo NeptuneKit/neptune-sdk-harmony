@@ -1,13 +1,14 @@
 {
   "name": "neptune-sdk-harmony",
-  "version": "0.1.0",
+  "version": "1.0.6",
   "description": "NeptuneKit v2 Harmony SDK with local log export skeleton",
   "main": "Index.ets",
   "author": "NeptuneKit",
   "license": "Apache-2.0",
   "compatibleSdkVersion": 12,
   "dependencies": {
-    "@cxy/webserver": "^2.0.2"
+    "@cxy/webserver": "^2.0.2",
+    "harmony-log": "^1.0.9"
   },
   "devDependencies": {},
   "dynamicDependencies": {}

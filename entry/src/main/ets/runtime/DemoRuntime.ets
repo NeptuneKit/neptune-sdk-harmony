@@ -116,8 +116,8 @@ const DEMO_DEVICE_ALPHA = 'sim-device-alpha'
 const DEMO_DEVICE_BETA = 'sim-device-beta'
 const DEMO_SESSION_ALPHA = 'sim-session-alpha'
 const DEMO_SESSION_BETA = 'sim-session-beta'
-const DEMO_INGEST_DEVICE_ID = 'sim-device-discovery'
-const DEMO_INGEST_SESSION_ID = 'sim-session-discovery'
+const DEMO_INGEST_DEVICE_ID = 'sim-device-alpha'
+const DEMO_INGEST_SESSION_ID = 'sim-session-alpha'
 class DemoRuntime {
   private readonly exportServer: ExportServer
   private readonly callbackManager: GatewayClientCallbackManager
@@ -131,6 +131,7 @@ class DemoRuntime {
   private manualUiTreeBackfillScheduled: boolean = false
   private manualUiTreeBackfillInFlight: boolean = false
   private gatewayDiscoveryContext: Object | undefined = undefined
+  private activeGatewayIngestEndpoint: string = DEMO_MANUAL_ENDPOINT_URL
   private batchIndex: number = 0
   private gatewayDiscovery: DemoGatewayDiscoveryCard = {
     state: 'idle',
@@ -239,6 +240,9 @@ class DemoRuntime {
       )
       this.gatewayDiscovery = this.toGatewayDiscoverySuccessCard(result)
       this.gatewayDiscovery = this.toGatewayDiscoveryIngestLoadingCard(this.gatewayDiscovery)
+      this.activeGatewayIngestEndpoint = result.source === 'manual-dsn'
+        ? DEMO_MANUAL_ENDPOINT_URL
+        : result.endpointUrl
       void this.callbackManager.setGatewayEndpoint(result.endpointUrl).catch((error: Error) => {
         console.error(
           `Callback manager register failed: ${error instanceof Error ? error.message : String(error)}`
@@ -266,6 +270,43 @@ class DemoRuntime {
       this.gatewayDiscovery = this.toGatewayDiscoveryFailureCard(error)
       return this.snapshot('网关发现失败')
     }
+  }
+
+  async ingestRandomLogToGateway(): Promise<DemoSnapshot> {
+    const now = new Date().toISOString()
+    const levels: LogLevel[] = ['info', 'notice', 'warning', 'error', 'debug']
+    const categories = ['ui', 'network', 'metrics', 'sources', 'runtime']
+    const actions = ['用户点击随机上报按钮', '模拟联调上报链路', '验证网关日志过滤', '刷新客户端日志页', '打点多端链路状态']
+    const randomLevel = levels[Math.floor(Math.random() * levels.length)]
+    const randomCategory = categories[Math.floor(Math.random() * categories.length)]
+    const randomAction = actions[Math.floor(Math.random() * actions.length)]
+    const randomCode = Math.random().toString(36).slice(2, 8)
+    const ingestRecord: IngestLogRecord = {
+      timestamp: now,
+      level: randomLevel,
+      message: `Manual random ingest · ${randomAction} · #${randomCode}`,
+      platform: DEMO_PLATFORM,
+      appId: DEMO_APP_ID,
+      sessionId: DEMO_INGEST_SESSION_ID,
+      deviceId: DEMO_INGEST_DEVICE_ID,
+      category: randomCategory,
+      source: {
+        sdkName: DEMO_SERVICE_NAME,
+        sdkVersion: DEMO_VERSION,
+        file: 'entry/src/main/ets/runtime/DemoRuntime.ets',
+        function: 'ingestRandomLogToGateway',
+        line: 0
+      }
+    }
+    this.exportServer.ingest(ingestRecord)
+    this.gatewayDiscovery = this.toGatewayDiscoveryIngestLoadingCard(this.gatewayDiscovery)
+    const ingestResult = await this.gatewayIngestClient.ingest(this.activeGatewayIngestEndpoint, ingestRecord)
+    this.gatewayDiscovery = this.applyIngestResult(this.gatewayDiscovery, ingestResult)
+    return this.snapshot(
+      ingestResult.state === 'success'
+        ? `已随机上报 1 条日志 #${randomCode}`
+        : `随机上报失败 #${randomCode}`
+    )
   }
 
   snapshot(message: string = '等待首个按钮事件'): DemoSnapshot {

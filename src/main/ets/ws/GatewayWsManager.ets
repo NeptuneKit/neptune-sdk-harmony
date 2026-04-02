@@ -7,8 +7,14 @@ import {
 } from '../discovery'
 import { GatewayWsClient } from './GatewayWsClient'
 import { GatewayWsClientSnapshot, GatewayWsManagerSnapshot } from './GatewayWsModels'
+import { HarmonyLogLevel } from 'harmony-log'
+import { createNeptuneHarmonyLogger, createNeptuneHarmonyMetadata, setNeptuneHarmonyMetadata } from '../logging'
 
 export class GatewayWsManager {
+  private readonly logger = createNeptuneHarmonyLogger(
+    'Neptune.WS.Manager',
+    HarmonyLogLevel.INFO
+  )
   private readonly discoveryResolver: GatewayDiscoveryResolver
   private readonly wsClient: GatewayWsClient
   private discoveryConfig: GatewayDiscoveryConfig = {}
@@ -36,11 +42,20 @@ export class GatewayWsManager {
       return result
     } catch (error) {
       if (error instanceof GatewayDiscoveryError && error.attempts.length > 0) {
-        console.error(
-          `GatewayWsManager discoverGateway failed: ${error.message} attempts=${error.attempts.join(',')}`
+        const metadata = createNeptuneHarmonyMetadata()
+        setNeptuneHarmonyMetadata(metadata, 'error', error.message)
+        setNeptuneHarmonyMetadata(metadata, 'attempts', error.attempts.join(','))
+        this.logger.error(
+          'gateway ws discovery failed with attempts',
+          metadata
         )
       } else {
-        console.error(`GatewayWsManager discoverGateway failed: ${error instanceof Error ? error.message : String(error)}`)
+        const metadata = createNeptuneHarmonyMetadata()
+        setNeptuneHarmonyMetadata(metadata, 'error', error instanceof Error ? error.message : String(error))
+        this.logger.error(
+          'gateway ws discovery failed',
+          metadata
+        )
       }
       return null
     }

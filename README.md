@@ -243,6 +243,7 @@ node ./scripts/demo-smoke.mjs
 `entry/` 是一个可以直接跑到 Harmony 模拟器上的 Stage HAP，它通过本地 `library` HAR 引用 Neptune SDK，然后在页面上做三件事：
 
 - 点击按钮向 SDK 写入一批示例日志
+- 点击“随机上报日志”按钮，每次向网关 `POST /v2/logs:ingest` 1 条随机日志
 - 点击“发现并上报”按钮，走 `mDNS -> 手动 DSN -> /v2/gateway/discovery` 的发现链路
 - 启动时后台建立本地 callback HTTP 服务，并在 discovery 结果变化时向网关执行 `POST /v2/clients:register`
 - 刷新 `metrics` 概览
@@ -266,7 +267,7 @@ node ./scripts/demo-smoke.mjs
 2. 等待 `ohpm install --all` 和项目同步结束。
 3. 选择 `entry` 模块和一个 Harmony 模拟器。
 4. 点击 Run。
-5. 打开页面后点击“写入日志批次”按钮。
+5. 打开页面后可点击“写入日志批次”或“随机上报日志”按钮。
 6. 本地 callback 服务会在后台启动，发现到网关后会自动注册并进入 30 秒续约节奏。
 
 ### hdc 跑法
@@ -314,6 +315,7 @@ hdc shell aa start -b io.github.neptune.sdk.harmony -a EntryAbility
 5. 如遇 `screen locked during launch`，先在模拟器上解锁再重试。
 6. 回到模拟器，点击页面按钮即可看到 metrics / sources 摘要刷新。
 7. 点击“发现并上报”按钮，确认页面会显示成功结果或失败原因，不影响现有 batch/metrics/sources 面板。
+8. 点击“随机上报日志”按钮，确认每次点击都只上报 1 条随机日志。
 
 ## 启动示例
 

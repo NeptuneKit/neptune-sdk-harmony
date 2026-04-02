@@ -1,11 +1,18 @@
 import http from '@ohos.net.http'
+import { HarmonyLogLevel } from 'harmony-log'
 
 import {
   GatewayClientRegistrationPayload,
   GatewayClientRegistrationResult
 } from './CallbackModels'
+import { createNeptuneHarmonyLogger, createNeptuneHarmonyMetadata, setNeptuneHarmonyMetadata } from '../logging'
 
 export class GatewayClientRegistrationHttpClient {
+  private readonly logger = createNeptuneHarmonyLogger(
+    'Neptune.Callback.Register',
+    HarmonyLogLevel.INFO
+  )
+
   async register(
     endpointUrl: string,
     payload: GatewayClientRegistrationPayload,
@@ -29,7 +36,13 @@ export class GatewayClientRegistrationHttpClient {
       const statusCode = Number(response.responseCode)
       const bodyText = this.normalizeBodyText(response.result)
       if (statusCode >= 200 && statusCode < 300) {
-        console.info(`GatewayClientRegistrationHttpClient register ok url=${requestUrl} status=${statusCode}`)
+        const metadata = createNeptuneHarmonyMetadata()
+        setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+        setNeptuneHarmonyMetadata(metadata, 'statusCode', statusCode)
+        this.logger.info(
+          'gateway callback registration succeeded',
+          metadata
+        )
         return {
           state: 'success',
           title: '注册成功',
@@ -38,7 +51,14 @@ export class GatewayClientRegistrationHttpClient {
         }
       }
 
-      console.error(`GatewayClientRegistrationHttpClient register failed url=${requestUrl} status=${statusCode}`)
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+      setNeptuneHarmonyMetadata(metadata, 'statusCode', statusCode)
+      setNeptuneHarmonyMetadata(metadata, 'bodyText', bodyText)
+      this.logger.error(
+        'gateway callback registration failed',
+        metadata
+      )
       return {
         state: 'failed',
         title: '注册失败',
@@ -46,8 +66,12 @@ export class GatewayClientRegistrationHttpClient {
         timestamp: new Date().toISOString()
       }
     } catch (error) {
-      console.error(
-        `GatewayClientRegistrationHttpClient register error url=${requestUrl} message=${error instanceof Error ? error.message : String(error)}`
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', requestUrl)
+      setNeptuneHarmonyMetadata(metadata, 'error', error instanceof Error ? error.message : String(error))
+      this.logger.error(
+        'gateway callback registration exception',
+        metadata
       )
       return {
         state: 'failed',
@@ -89,4 +113,3 @@ export class GatewayClientRegistrationHttpClient {
     return JSON.stringify(result)
   }
 }
-

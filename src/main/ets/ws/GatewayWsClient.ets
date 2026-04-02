@@ -1,4 +1,5 @@
 import { webSocket } from '@kit.NetworkKit'
+import { HarmonyLogLevel } from 'harmony-log'
 
 import {
   DEFAULT_GATEWAY_WS_APP_ID,
@@ -17,8 +18,13 @@ import {
   GatewayWsHeartbeatFrame,
   GatewayWsHelloFrame
 } from './GatewayWsModels'
+import { createNeptuneHarmonyLogger, createNeptuneHarmonyMetadata, setNeptuneHarmonyMetadata } from '../logging'
 
 export class GatewayWsClient {
+  private readonly logger = createNeptuneHarmonyLogger(
+    'Neptune.WS.Client',
+    HarmonyLogLevel.INFO
+  )
   private socket: webSocket.WebSocket | null = null
   private endpointUrl: string | null = null
   private state: GatewayWsConnectionState = 'idle'
@@ -181,7 +187,9 @@ export class GatewayWsClient {
       deviceId: this.deviceId,
       timestamp: new Date().toISOString()
     })
-    console.info(`GatewayWsClient connected endpoint=${this.endpointUrl ?? ''}`)
+    const metadata = createNeptuneHarmonyMetadata()
+    setNeptuneHarmonyMetadata(metadata, 'endpoint', this.endpointUrl ?? '')
+    this.logger.info('gateway ws connected', metadata)
   }
 
   private onSocketMessage(payload: string | ArrayBuffer): void {

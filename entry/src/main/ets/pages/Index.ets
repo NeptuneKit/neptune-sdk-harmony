@@ -42,6 +42,10 @@ struct Index {
     this.snapshot = demoRuntime.snapshot('已刷新快照')
   }
 
+  private async onRandomIngestTap(): Promise<void> {
+    this.snapshot = await demoRuntime.ingestRandomLogToGateway()
+  }
+
   private async refreshGatewayDiscovery(): Promise<void> {
     this.snapshot = await demoRuntime.discoverGateway()
   }
@@ -81,7 +85,7 @@ struct Index {
             .fontWeight(FontWeight.Bold)
             .fontColor('#F2F7FF')
 
-          Text('点击下方按钮，把日志写入 HAR Runtime，并在页面内同步观察 metrics 与 sources 摘要。')
+          Text('点击下方按钮，可写入批次日志或随机上报单条日志，并在页面内同步观察 metrics 与 sources 摘要。')
             .fontSize(14)
             .fontColor('#9FB2C7')
             .lineHeight(20)
@@ -210,6 +214,18 @@ struct Index {
           .fontColor('#04121C')
           .onClick(() => {
             this.runDemoBatch()
+          })
+
+        Button('随机上报日志')
+          .type(ButtonType.Capsule)
+          .width('100%')
+          .height(54)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor('#5BE39A')
+          .fontColor('#04121C')
+          .onClick(() => {
+            void this.onRandomIngestTap()
           })
 
         Button('刷新快照')

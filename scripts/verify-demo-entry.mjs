@@ -48,6 +48,16 @@ expectContains(
 )
 expectContains(
   path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
+  '随机上报日志',
+  'demo page must expose the random-ingest button'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
+  'onRandomIngestTap',
+  'demo page must wire random-ingest click handler'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/pages/Index.ets'),
   '刷新快照',
   'demo page must expose the refresh snapshot button'
 )
@@ -95,6 +105,31 @@ expectContains(
   path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
   'this.gatewayIngestClient.ingest',
   'demo runtime must POST the discovery log after gateway discovery succeeds'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  'ingestRandomLogToGateway',
+  'demo runtime must expose random single-log ingest action for manual testing'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  "const DEMO_INGEST_SESSION_ID = 'sim-session-alpha'",
+  'demo runtime should align ingest session to alpha identity for logs page filtering'
+)
+expectContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  "const DEMO_INGEST_DEVICE_ID = 'sim-device-alpha'",
+  'demo runtime should align ingest device to alpha identity for logs page filtering'
+)
+expectNotContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  'sim-session-discovery',
+  'demo runtime should not use discovery-only session identity for ingest logs'
+)
+expectNotContains(
+  path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),
+  'sim-device-discovery',
+  'demo runtime should not use discovery-only device identity for ingest logs'
 )
 expectContains(
   path.join(entryRoot, 'src/main/ets/runtime/DemoRuntime.ets'),

@@ -1,4 +1,5 @@
 import { socket } from '@kit.NetworkKit'
+import { HarmonyLogLevel } from 'harmony-log'
 
 import { ExportServer } from '../server/ExportServer'
 import { Platform } from '../model/LogModels'
@@ -8,6 +9,7 @@ import {
   GatewayClientRegistrationResult
 } from './CallbackModels'
 import { GatewayClientRegistrationHttpClient } from './GatewayClientRegistrationHttpClient'
+import { createNeptuneHarmonyLogger, createNeptuneHarmonyMetadata, setNeptuneHarmonyMetadata } from '../logging'
 
 const DEFAULT_CALLBACK_LISTEN_ADDRESS = '0.0.0.0'
 const DEFAULT_CALLBACK_ADVERTISED_HOST = '127.0.0.1'
@@ -18,6 +20,10 @@ const DEFAULT_CALLBACK_COMMAND_PATH = '/v2/client/command'
 const DEFAULT_PREFERRED_TRANSPORT = 'httpCallback'
 
 export class GatewayClientCallbackManager {
+  private readonly logger = createNeptuneHarmonyLogger(
+    'Neptune.Callback.Manager',
+    HarmonyLogLevel.INFO
+  )
   private readonly exportServer: ExportServer
   private readonly registrationClient: GatewayClientRegistrationHttpClient
   private readonly renewIntervalMs: number
@@ -109,15 +115,25 @@ export class GatewayClientCallbackManager {
     const payload = this.makeRegistrationPayload(callbackBaseUrl)
     const result = await this.registrationClient.register(endpointUrl, payload, this.requestTimeoutMs)
     if (result.state === 'success') {
-      console.info(
-        `GatewayClientCallbackManager register ok reason=${reason} endpoint=${endpointUrl} callback=${callbackBaseUrl}`
+      const metadata = createNeptuneHarmonyMetadata()
+      setNeptuneHarmonyMetadata(metadata, 'reason', reason)
+      setNeptuneHarmonyMetadata(metadata, 'endpoint', endpointUrl)
+      setNeptuneHarmonyMetadata(metadata, 'callback', callbackBaseUrl)
+      this.logger.info(
+        'gateway callback manager registration succeeded',
+        metadata
       )
       this.refreshRenewTimer()
       return result
     }
 
-    console.error(
-      `GatewayClientCallbackManager register failed reason=${reason} endpoint=${endpointUrl} callback=${callbackBaseUrl}`
+    const metadata = createNeptuneHarmonyMetadata()
+    setNeptuneHarmonyMetadata(metadata, 'reason', reason)
+    setNeptuneHarmonyMetadata(metadata, 'endpoint', endpointUrl)
+    setNeptuneHarmonyMetadata(metadata, 'callback', callbackBaseUrl)
+    this.logger.error(
+      'gateway callback manager registration failed',
+      metadata
     )
     return result
   }
