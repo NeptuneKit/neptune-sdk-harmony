@@ -54,7 +54,7 @@ if n != 1:
 path.write_text(updated, encoding="utf-8")
 PY
 
-if ! rg -q "\"version\"[[:space:]]*:[[:space:]]*\"${version_name}\"" library/oh-package.json5; then
+if ! grep -Eq "\"version\"[[:space:]]*:[[:space:]]*\"${version_name}\"" library/oh-package.json5; then
   echo "version update verification failed: expected ${version_name}" >&2
   exit 1
 fi
