@@ -35,8 +35,29 @@ export * from './ws'
 ETS
 fi
 
-sed -i.bak -E "s/(\"version\"\s*:\s*\")[^\"]+(\")/\1${version_name}\2/" library/oh-package.json5
-rm -f library/oh-package.json5.bak
+python3 - <<'PY' "${version_name}"
+import pathlib
+import re
+import sys
+
+version = sys.argv[1]
+path = pathlib.Path("library/oh-package.json5")
+text = path.read_text(encoding="utf-8")
+updated, n = re.subn(
+    r'("version"\s*:\s*")[^"]+(")',
+    rf"\g<1>{version}\2",
+    text,
+    count=1,
+)
+if n != 1:
+    raise SystemExit("failed to update version in library/oh-package.json5")
+path.write_text(updated, encoding="utf-8")
+PY
+
+if ! rg -q "\"version\"[[:space:]]*:[[:space:]]*\"${version_name}\"" library/oh-package.json5; then
+  echo "version update verification failed: expected ${version_name}" >&2
+  exit 1
+fi
 
 ohpm config set registry "https://ohpm.openharmony.cn/ohpm/" || true
 ohpm install
