@@ -62,8 +62,6 @@ jobs:
 
   publish:
     needs: resolve-version
-    environment:
-      name: harmony-release
     uses: NeptuneKit/.github/.github/workflows/ohpm-publish.yml@main
     with:
       version: ${{ needs.resolve-version.outputs.version_name }}
