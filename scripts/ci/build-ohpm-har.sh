@@ -13,6 +13,11 @@ if [[ ! -f "library/oh-package.json5" ]]; then
   exit 1
 fi
 
+# Keep library ArkTS mirror in sync when build runs in a clean CI checkout.
+if [[ -x "./scripts/sync-harmony-module.sh" ]]; then
+  ./scripts/sync-harmony-module.sh
+fi
+
 if [[ ! -f "library/src/main/ets/index.ets" ]]; then
   mkdir -p "library/src/main/ets"
   cat > "library/src/main/ets/index.ets" <<'ETS'
@@ -43,12 +48,12 @@ if command -v hvigor >/dev/null 2>&1; then
   hvigor --stop-daemon >/dev/null 2>&1 || true
 fi
 
-if command -v hvigorw >/dev/null 2>&1; then
+if [[ -x "./hvigorw" ]]; then
+  ./hvigorw --mode module -p module=library assembleHar --no-daemon
+elif command -v hvigorw >/dev/null 2>&1; then
   hvigorw --mode module -p module=library assembleHar --no-daemon
 elif command -v hvigor >/dev/null 2>&1; then
   hvigor --mode module -p module=library assembleHar --no-daemon
-elif [[ -x "./hvigorw" ]]; then
-  ./hvigorw --mode module -p module=library assembleHar --no-daemon
 else
   echo "Cannot find hvigor/hvigorw for building HAR" >&2
   exit 1

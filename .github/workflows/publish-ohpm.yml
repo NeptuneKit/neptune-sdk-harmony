@@ -20,9 +20,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: harmony-ohpm-publish-${{ github.repository }}-${{ github.ref_name || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   resolve-version:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on:
+      - self-hosted
+      - macOS
+      - ARM64
+      - ${{ vars.NEPTUNE_HARMONY_RUNNER_LABEL || 'neptune-harmony-release' }}
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
     steps:
@@ -54,6 +62,8 @@ jobs:
 
   publish:
     needs: resolve-version
+    environment:
+      name: harmony-release
     uses: NeptuneKit/.github/.github/workflows/ohpm-publish.yml@main
     with:
       version: ${{ needs.resolve-version.outputs.version_name }}
@@ -64,4 +74,6 @@ jobs:
       readme_path: library/README.md
       changelog_path: library/changelog.md
       publish_registry: https://ohpm.openharmony.cn/ohpm/
+      environment_name: harmony-release
+      runner_label: ${{ vars.NEPTUNE_HARMONY_RUNNER_LABEL || 'neptune-harmony-release' }}
     secrets: inherit

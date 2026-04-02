@@ -25,9 +25,15 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: harmony-release-tag-${{ github.repository }}-${{ github.ref_name || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment:
+      name: harmony-release
 
     steps:
       - name: Resolve release tag
@@ -66,3 +72,28 @@ jobs:
           generate_release_notes: true
           draft: ${{ inputs.draft || false }}
           prerelease: ${{ inputs.prerelease || false }}
+
+  notify-on-failure:
+    needs: [release]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify release failure
+        shell: bash
+        env:
+          RELEASE_ALERT_WEBHOOK: ${{ secrets.NEPTUNE_RELEASE_ALERT_WEBHOOK }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${RELEASE_ALERT_WEBHOOK:-}" ]]; then
+            echo "NEPTUNE_RELEASE_ALERT_WEBHOOK is empty, skip notification."
+            exit 0
+          fi
+
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          message="Release (Tag) failed: repo=${GITHUB_REPOSITORY} ref=${GITHUB_REF_NAME} run=${run_url}"
+          escaped_message="${message//\"/\\\"}"
+
+          curl -fsS -X POST "${RELEASE_ALERT_WEBHOOK}" \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"${escaped_message}\"}"
