@@ -1,0 +1,19 @@
+name: Auto Tag On Main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    uses: NeptuneKit/.github/.github/workflows/auto-tag-on-main.yml@main
+    with:
+      main_branch: main
+      tag_prefix: v
+      runner_label: ${{ vars.NEPTUNE_HARMONY_RUNNER_LABEL || 'ARM64' }}
+    secrets:
+      RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
